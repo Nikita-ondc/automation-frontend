@@ -13,6 +13,7 @@ import ScenarioPage from "@pages/scenario";
 import HomePage from "@pages/home";
 import AuthHeader from "@pages/auth-header";
 import { ROUTES } from "@constants/routes";
+import DeveloperGuide from "@pages/developer-guide";
 
 const Routes = () => (
     <RouterRoutes>
@@ -31,6 +32,7 @@ const Routes = () => (
         <Route path="*" element={<NotFoundPage />} />
         <Route path={ROUTES.DB_BACK_OFFICE} element={<DBBackOffice />} />
         <Route path={ROUTES.AUTH_HEADER} element={<AuthHeader />} />
+        <Route path={ROUTES.DEVELOPER_GUIDE} element={<DeveloperGuide />} />
     </RouterRoutes>
 );
 

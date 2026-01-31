@@ -16,6 +16,7 @@ export const ROUTES = {
     DB_BACK_OFFICE: "/db-back-office",
     ROOT: "/",
     AUTH_HEADER: "/auth-header",
+    DEVELOPER_GUIDE: "/developer-guide",
 } as const;
 
 /**
