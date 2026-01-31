@@ -4,6 +4,13 @@ import { UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { LabelWithToolTip } from "./form-input";
 
+type UploadedImage = { imageUrl?: string };
+type UploadMultipleResponse = {
+    success: boolean;
+    data: { images: UploadedImage[] };
+    message?: string;
+};
+
 interface MultiImageUploadProps {
     label: string;
     labelInfo?: string;
@@ -101,15 +108,19 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
             formData.append("folder", folder);
 
             const baseURL = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
-            const response = await axios.post(`${baseURL}/images/upload-multiple`, formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            });
+            const response = await axios.post<UploadMultipleResponse>(
+                `${baseURL}/images/upload-multiple`,
+                formData,
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                }
+            );
 
             if (response.data.success) {
                 const newUploadedUrls = response.data.data.images.map(
-                    (img: any) => img.imageUrl || defaultImageUrl
+                    (img: UploadedImage) => img.imageUrl || defaultImageUrl
                 );
                 const allUrls = [...uploadedUrls, ...newUploadedUrls];
                 setUploadedUrls(allUrls);
@@ -124,7 +135,7 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
             } else {
                 throw new Error(response.data.message || "Upload failed");
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error uploading images:", error);
             message.error("Failed to upload images. Using default image URLs.");
             // Use default URLs for the number of files that failed
@@ -162,7 +173,8 @@ const MultiImageUpload: React.FC<MultiImageUploadProps> = ({
             try {
                 new URL(url);
                 validUrls.push(url);
-            } catch (error) {
+            } catch (error: unknown) {
+                console.error("Error validating URL:", error);
                 message.error(`Invalid URL: ${url}`);
                 return;
             }

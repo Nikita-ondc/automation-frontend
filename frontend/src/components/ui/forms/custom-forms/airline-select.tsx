@@ -11,6 +11,12 @@ import {
     DEFAULT_FORM_DATA,
 } from "./airline.types";
 
+type CatalogAddOn = { id: string; descriptor?: { name?: string } };
+type CatalogItem = { id: string; descriptor?: { name?: string }; add_ons?: CatalogAddOn[] };
+type CatalogFulfillment = { id: string };
+type CatalogProvider = { id: string; items?: CatalogItem[]; fulfillments?: CatalogFulfillment[] };
+type OnSearchPayload = { message?: { catalog?: { providers?: CatalogProvider[] } } };
+
 export default function AirlineSelect({
     submitEvent,
     defaultValues = DEFAULT_FORM_DATA,
@@ -38,23 +44,26 @@ export default function AirlineSelect({
     };
 
     /* ------------------- HANDLE PASTE ------------------- */
-    const handlePaste = (payload: any) => {
+    const handlePaste = (payload: unknown) => {
         try {
-            if (!payload?.message?.catalog?.providers) {
+            const parsed = payload as OnSearchPayload;
+            if (!parsed?.message?.catalog?.providers) {
                 throw new Error("Invalid Schema");
             }
 
-            const provider = payload.message.catalog.providers[0];
+            const provider = parsed.message.catalog.providers[0];
 
             // Extract items from catalog
-            const catalogItems: ICatalogItem[] = (provider.items || []).map((item: any) => ({
-                id: item.id,
-                name: item.descriptor?.name || item.id,
-                addOns: (item.add_ons || []).map((addon: any) => ({
-                    id: addon.id,
-                    name: addon.descriptor?.name || addon.id,
-                })),
-            }));
+            const catalogItems: ICatalogItem[] = (provider.items || []).map(
+                (item: CatalogItem) => ({
+                    id: item.id,
+                    name: item.descriptor?.name || item.id,
+                    addOns: (item.add_ons || []).map((addon: CatalogAddOn) => ({
+                        id: addon.id,
+                        name: addon.descriptor?.name || addon.id,
+                    })),
+                })
+            );
 
             setAvailableItems(catalogItems);
             setErrorWhilePaste("");

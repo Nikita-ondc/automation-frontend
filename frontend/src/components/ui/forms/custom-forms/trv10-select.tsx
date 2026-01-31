@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FieldPath } from "react-hook-form";
 import { FaRegPaste } from "react-icons/fa6";
 import PayloadEditor from "../../mini-components/payload-editor";
 import { SubmitEventParams } from "../../../../types/flow-types";
@@ -16,6 +16,25 @@ interface ExtractedItem {
     addOns: AddOnInfo[];
 }
 
+type AddOnSelection = { id: string; quantity: number };
+
+type FormItem = {
+    itemId: string;
+    count: number;
+    addOns: AddOnSelection[];
+    providerid: string;
+};
+
+type FormValues = {
+    provider: string;
+    items: FormItem[];
+};
+
+type CatalogAddOn = { id: string; quantity?: { maximum?: { count?: number } } };
+type CatalogItem = { id: string; add_ons?: CatalogAddOn[] };
+type CatalogProvider = { id: string; items?: CatalogItem[] };
+type OnSearchPayload = { message?: { catalog?: { providers?: CatalogProvider[] } } };
+
 export default function TRV10AddOnSelect({
     submitEvent,
 }: {
@@ -23,14 +42,14 @@ export default function TRV10AddOnSelect({
 }) {
     const [isPayloadEditorActive, setIsPayloadEditorActive] = useState(false);
     const [errorWhilePaste, setErrorWhilePaste] = useState("");
-    const { control, handleSubmit, watch, register, setValue, getValues } = useForm({
+    const { control, handleSubmit, watch, register, setValue, getValues } = useForm<FormValues>({
         defaultValues: {
-            provider: "" as string,
+            provider: "",
             items: [{ itemId: "", count: 1, addOns: [], providerid: "" }],
-        } as any,
+        },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, append, remove } = useFieldArray<FormValues, "items">({
         control,
         name: "items",
     });
@@ -38,34 +57,38 @@ export default function TRV10AddOnSelect({
     const selectedItems = watch("items");
     const [itemOptions, setItemOptions] = useState<ExtractedItem[]>([]);
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: FormValues) => {
         const formattedData = {
             ...data,
-            items: data.items.map((item: any) => ({
+            items: data.items.map((item: FormItem) => ({
                 ...item,
-                addOns: item.addOns.map((addon: any) => ({
+                addOns: item.addOns.map((addon: AddOnSelection) => ({
                     id: addon.id,
                     quantity: addon.quantity,
                 })),
             })),
         };
-        await submitEvent({ jsonPath: {}, formData: formattedData });
+        await submitEvent({
+            jsonPath: {},
+            formData: formattedData as unknown as Record<string, string>,
+        });
     };
 
-    const handlePaste = (payload: any) => {
+    const handlePaste = (payload: unknown) => {
         try {
-            if (!payload?.message?.catalog?.providers) return [];
-            const providers = payload.message.catalog.providers;
+            const parsed = payload as OnSearchPayload;
+            if (!parsed?.message?.catalog?.providers) return [];
+            const providers = parsed.message.catalog.providers;
 
             const results: ExtractedItem[] = [];
-            providers.forEach((provider: any) => {
+            providers.forEach((provider: CatalogProvider) => {
                 const providerId = provider.id;
                 if (!provider.items) return;
-                provider.items.forEach((item: any) => {
+                provider.items.forEach((item: CatalogItem) => {
                     results.push({
                         itemid: item.id,
                         providerid: providerId,
-                        addOns: (item.add_ons || []).map((addon: any) => ({
+                        addOns: (item.add_ons || []).map((addon: CatalogAddOn) => ({
                             id: addon.id,
 
                             maxQuantity: addon.quantity?.maximum?.count || 10,
@@ -98,7 +121,7 @@ export default function TRV10AddOnSelect({
             return (
                 <input
                     type="text"
-                    {...register(name)}
+                    {...register(name as unknown as FieldPath<FormValues>)}
                     placeholder={placeholder}
                     className={inputStyle}
                 />
@@ -106,14 +129,17 @@ export default function TRV10AddOnSelect({
         }
         return (
             <select
-                {...register(name)}
+                {...register(name as unknown as FieldPath<FormValues>)}
                 onChange={(e) => {
                     const selectedId = e.target.value;
                     const selectedOption = options.find((opt) => opt.itemid === selectedId);
 
                     if (selectedOption) {
-                        setValue(`items.${index}.addOns`, []);
-                        setValue(`items.${index}.providerid`, selectedOption.providerid);
+                        setValue(`items.${index}.addOns` as unknown as FieldPath<FormValues>, []);
+                        setValue(
+                            `items.${index}.providerid` as unknown as FieldPath<FormValues>,
+                            selectedOption.providerid
+                        );
                     }
                 }}
                 className={inputStyle}
@@ -183,11 +209,15 @@ export default function TRV10AddOnSelect({
                                                 const prev =
                                                     getValues(`items.${index}.addOns`) || [];
                                                 // check if already added by ID
-                                                if (!prev.some((addon: any) => addon.id === val)) {
-                                                    setValue(`items.${index}.addOns`, [
-                                                        ...prev,
-                                                        { id: val, quantity: 1 },
-                                                    ]);
+                                                if (
+                                                    !prev.some(
+                                                        (addon: AddOnSelection) => addon.id === val
+                                                    )
+                                                ) {
+                                                    setValue(
+                                                        `items.${index}.addOns` as unknown as FieldPath<FormValues>,
+                                                        [...prev, { id: val, quantity: 1 }]
+                                                    );
                                                 }
                                             }}
                                             value=""
@@ -202,7 +232,7 @@ export default function TRV10AddOnSelect({
 
                                         <div className="flex flex-col gap-2 mt-2">
                                             {selectedItems[index]?.addOns?.map(
-                                                (selectedAddOn: any) => {
+                                                (selectedAddOn: AddOnSelection) => {
                                                     const addOnInfo = selectedExtracted.addOns.find(
                                                         (a) => a.id === selectedAddOn.id
                                                     );
@@ -241,7 +271,9 @@ export default function TRV10AddOnSelect({
                                                                             );
                                                                         const updated =
                                                                             currentAddOns.map(
-                                                                                (a: any) =>
+                                                                                (
+                                                                                    a: AddOnSelection
+                                                                                ) =>
                                                                                     a.id ===
                                                                                     selectedAddOn.id
                                                                                         ? {
@@ -252,7 +284,7 @@ export default function TRV10AddOnSelect({
                                                                                         : a
                                                                             );
                                                                         setValue(
-                                                                            `items.${index}.addOns`,
+                                                                            `items.${index}.addOns` as unknown as FieldPath<FormValues>,
                                                                             updated
                                                                         );
                                                                     }}
@@ -269,9 +301,9 @@ export default function TRV10AddOnSelect({
                                                                         `items.${index}.addOns`
                                                                     );
                                                                     setValue(
-                                                                        `items.${index}.addOns`,
+                                                                        `items.${index}.addOns` as unknown as FieldPath<FormValues>,
                                                                         currentAddOns.filter(
-                                                                            (a: any) =>
+                                                                            (a: AddOnSelection) =>
                                                                                 a.id !==
                                                                                 selectedAddOn.id
                                                                         )

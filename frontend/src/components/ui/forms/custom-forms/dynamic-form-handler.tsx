@@ -7,7 +7,7 @@ import { useSession } from "../../../../context/context";
 
 interface DynamicFormHandlerProps {
     submitEvent: (data: SubmitEventParams) => Promise<void>;
-    referenceData?: Record<string, any>;
+    referenceData?: Record<string, unknown>;
     sessionId: string;
     transactionId: string;
     formConfig?: FormFieldConfigType;
@@ -178,8 +178,9 @@ export default function DynamicFormHandler({
                     setStatus("error");
                 }
             }
-        } catch (error: any) {
-            console.error("Error checking completion:", error.message);
+        } catch (error: unknown) {
+            const err = error as { message?: string };
+            console.error("Error checking completion:", err.message);
         }
     }, [
         actualSessionId,
@@ -334,11 +335,15 @@ export default function DynamicFormHandler({
                 throw new Error(
                     "Expected JSON response with formUrl, but got: " + typeof response.data
                 );
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error("Error opening form:", error);
                 setStatus("error");
+                const err = error as {
+                    message?: string;
+                    response?: { data?: { message?: string } };
+                };
                 setErrorMessage(
-                    error.response?.data?.message || error.message || "Failed to open form"
+                    err.response?.data?.message || err.message || "Failed to open form"
                 );
 
                 // Close the popup if we failed to get the URL

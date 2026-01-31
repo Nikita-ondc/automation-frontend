@@ -10,6 +10,20 @@ interface ExtractedItem {
     parent_item_id: string;
 }
 
+type FormValues = {
+    selectedItems: ExtractedItem[];
+};
+
+type OrderItem = { id: string; parent_item_id?: string };
+type CatalogItem = { id: string; parent_item_id?: string };
+type CatalogProvider = { items?: CatalogItem[] };
+type Payload = {
+    message?: {
+        order?: { items?: OrderItem[] };
+        catalog?: { providers?: CatalogProvider[] };
+    };
+};
+
 export default function FIS13ItemSelection({
     submitEvent,
 }: {
@@ -19,36 +33,40 @@ export default function FIS13ItemSelection({
     const [errorWhilePaste, setErrorWhilePaste] = useState("");
     const [itemOptions, setItemOptions] = useState<ExtractedItem[]>([]);
 
-    const { handleSubmit, watch, setValue } = useForm({
+    const { handleSubmit, watch, setValue } = useForm<FormValues>({
         defaultValues: {
-            selectedItems: [] as ExtractedItem[],
+            selectedItems: [],
         },
     });
 
     const selectedItems = watch("selectedItems");
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: FormValues) => {
         // Only send the selected items array as requested
-        await submitEvent({ jsonPath: {}, formData: data.selectedItems });
+        await submitEvent({
+            jsonPath: {},
+            formData: data.selectedItems as unknown as Record<string, string>,
+        });
     };
 
-    const handlePaste = (payload: any) => {
+    const handlePaste = (payload: unknown) => {
         setErrorWhilePaste("");
         try {
             let results: ExtractedItem[] = [];
+            const parsed = payload as Payload;
 
             // Handle on_select / on_init payload structure
-            if (payload?.message?.order?.items) {
-                results = payload.message.order.items.map((item: any) => ({
+            if (parsed?.message?.order?.items) {
+                results = parsed.message.order.items.map((item: OrderItem) => ({
                     id: item.id,
                     parent_item_id: item.parent_item_id || "",
                 }));
             }
             // Handle on_search / catalog payload structure (fallback)
-            else if (payload?.message?.catalog?.providers) {
-                payload.message.catalog.providers.forEach((provider: any) => {
+            else if (parsed?.message?.catalog?.providers) {
+                parsed.message.catalog.providers.forEach((provider: CatalogProvider) => {
                     if (provider.items) {
-                        provider.items.forEach((item: any) => {
+                        provider.items.forEach((item: CatalogItem) => {
                             results.push({
                                 id: item.id,
                                 parent_item_id: item.parent_item_id || "",
@@ -105,7 +123,7 @@ export default function FIS13ItemSelection({
 
                     {itemOptions.length === 0 && (
                         <span className="text-xs text-amber-600 bg-amber-50 px-3 py-1.5 rounded-md border border-amber-100 italic">
-                            Please paste the payload (on_search or on_select) to load item options.
+                            Please paste the payload (on_search) to load item options.
                         </span>
                     )}
                 </div>
@@ -132,15 +150,14 @@ export default function FIS13ItemSelection({
                                     <div
                                         key={option.id}
                                         onClick={() => toggleItemSelection(option)}
-                                        className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${
-                                            isSelected ? "bg-blue-50" : "hover:bg-gray-50"
-                                        }`}
+                                        className={`flex items-center justify-between p-3 cursor-pointer transition-colors ${isSelected ? "bg-blue-50" : "hover:bg-gray-50"
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="checkbox"
                                                 checked={isSelected}
-                                                onChange={() => {}} // Handled by div onClick
+                                                onChange={() => { }} // Handled by div onClick
                                                 className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                                             />
                                             <div>
@@ -196,11 +213,10 @@ export default function FIS13ItemSelection({
                 <button
                     type="submit"
                     disabled={selectedItems.length === 0}
-                    className={`w-full py-3 rounded-lg font-semibold transition-all shadow-md ${
-                        selectedItems.length > 0
+                    className={`w-full py-3 rounded-lg font-semibold transition-all shadow-md ${selectedItems.length > 0
                             ? "bg-green-600 text-white hover:bg-green-700 active:transform active:scale-[0.98]"
                             : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    }`}
+                        }`}
                 >
                     Submit
                 </button>

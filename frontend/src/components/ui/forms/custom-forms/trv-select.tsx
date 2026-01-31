@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FieldPath } from "react-hook-form";
 import { FaRegPaste } from "react-icons/fa6";
 import PayloadEditor from "../../mini-components/payload-editor";
 import { SubmitEventParams } from "../../../../types/flow-types";
@@ -19,6 +19,26 @@ const FLOWS_WITH_ADD_ITEM_BUTTON: string[] = [
     "user_cancellation_partial",
 ];
 
+type CatalogAddOn = { id: string };
+type CatalogItem = { id: string; parent_item_id?: string; add_ons?: CatalogAddOn[] };
+type CatalogFulfillment = { id: string };
+type CatalogProvider = { id: string; fulfillments: CatalogFulfillment[]; items?: CatalogItem[] };
+type OnSearchPayload = { message?: { catalog?: { providers?: CatalogProvider[] } } };
+
+type FormItem = {
+    itemId: string;
+    count: number;
+    addOns: string[];
+    addOnsQuantity: number;
+    parentItemId?: string;
+};
+
+type FormValues = {
+    provider: string;
+    fulfillment?: string;
+    items: FormItem[];
+};
+
 export default function TRVSelect({
     submitEvent,
     flowId,
@@ -29,14 +49,14 @@ export default function TRVSelect({
     const [isPayloadEditorActive, setIsPayloadEditorActive] = useState(false);
     const [errorWhilePaste, setErrorWhilePaste] = useState("");
 
-    const { control, handleSubmit, watch, register, setValue, getValues } = useForm({
+    const { control, handleSubmit, watch, register, setValue, getValues } = useForm<FormValues>({
         defaultValues: {
-            provider: "" as string,
+            provider: "",
             items: [{ itemId: "", count: 1, addOns: [], addOnsQuantity: 1 }],
-        } as any,
+        },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, append, remove } = useFieldArray<FormValues, "items">({
         control,
         name: "items",
     });
@@ -44,35 +64,36 @@ export default function TRVSelect({
     const selectedItems = watch("items");
     const [itemOptions, setItemOptions] = useState<ExtractedItem[]>([]);
 
-    const onSubmit = async (data: any) => {
-        await submitEvent({ jsonPath: {}, formData: data });
+    const onSubmit = async (data: FormValues) => {
+        await submitEvent({ jsonPath: {}, formData: data as unknown as Record<string, string> });
     };
 
-    const handlePaste = (payload: any) => {
+    const handlePaste = (payload: unknown) => {
         setErrorWhilePaste("");
         try {
-            if (!payload?.message?.catalog?.providers) return [];
+            const parsed = payload as OnSearchPayload;
+            if (!parsed?.message?.catalog?.providers) return [];
 
-            const providers = payload.message.catalog.providers;
+            const providers = parsed.message.catalog.providers;
 
             const results: ExtractedItem[] = [];
 
-            providers.forEach((provider: any) => {
+            providers.forEach((provider: CatalogProvider) => {
                 const providerId = provider.id;
-                const fulfillmentId = provider.fulfillments[0].id;
+                const fulfillmentId = provider.fulfillments[0]!.id;
                 if (!fulfillmentId) return;
 
                 if (!provider.items) return;
 
-                setValue("fulfillment", provider.fulfillments[0].id);
+                setValue("fulfillment", provider.fulfillments[0]!.id);
 
-                provider.items.forEach((item: any) => {
+                provider.items.forEach((item: CatalogItem) => {
                     if (item.parent_item_id) {
                         results.push({
                             itemid: item.id,
                             parentItemId: item.parent_item_id,
                             providerid: providerId,
-                            addOns: (item.add_ons || []).map((addon: any) => addon.id),
+                            addOns: (item.add_ons || []).map((addon: CatalogAddOn) => addon.id),
                         });
                     }
                 });
@@ -102,7 +123,7 @@ export default function TRVSelect({
             return (
                 <input
                     type="text"
-                    {...register(name)}
+                    {...register(name as unknown as FieldPath<FormValues>)}
                     placeholder={placeholder}
                     className={inputStyle}
                 />
@@ -110,16 +131,22 @@ export default function TRVSelect({
         }
         return (
             <select
-                {...register(name)}
+                {...register(name as unknown as FieldPath<FormValues>)}
                 onChange={(e) => {
                     const selectedId = e.target.value;
                     const selectedOption = options.find((opt) => opt.itemid === selectedId);
 
                     if (selectedOption) {
                         // update the other fields in the same row
-                        setValue(`items.${index}.parentItemId`, selectedOption.parentItemId);
+                        setValue(
+                            `items.${index}.parentItemId` as unknown as FieldPath<FormValues>,
+                            selectedOption.parentItemId
+                        );
                         setValue("provider", selectedOption.providerid);
-                        setValue(`items.${index}.addOns`, []);
+                        setValue(
+                            `items.${index}.addOns` as unknown as FieldPath<FormValues>,
+                            [] as string[]
+                        );
                     }
                 }}
                 className={inputStyle}
@@ -186,14 +213,17 @@ export default function TRVSelect({
                                     onChange={(e) => {
                                         const val = e.target.value;
                                         if (!val) return;
-                                        const prev = getValues(`items.${index}.addOns`) || [];
+                                        const prev = getValues().items[index]?.addOns ?? [];
                                         if (!prev.includes(val)) {
-                                            setValue(`items.${index}.addOns`, [...prev, val]);
+                                            setValue(
+                                                `items.${index}.addOns` as unknown as FieldPath<FormValues>,
+                                                [...prev, val]
+                                            );
                                         }
                                     }}
                                 >
                                     <option value="">Select Add Ons</option>
-                                    {itemOptions[index].addOns.map((c: any) => (
+                                    {itemOptions[index].addOns.map((c: string) => (
                                         <option key={c} value={c}>
                                             {c}
                                         </option>
@@ -201,7 +231,7 @@ export default function TRVSelect({
                                 </select>
 
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                    {selectedItems[index]?.addOns?.map((c: any, i: number) => (
+                                    {selectedItems[index]?.addOns?.map((c: string, i: number) => (
                                         <span
                                             key={i}
                                             className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"

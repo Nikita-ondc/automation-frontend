@@ -361,6 +361,7 @@ const CustomMenuRelationshipView: React.FC<CustomMenuRelationshipViewProps> = ({
                                                                                                             C
                                                                                                             {itemIndex +
                                                                                                                 1}
+
                                                                                                             _
                                                                                                             {custIndex +
                                                                                                                 1}
@@ -388,10 +389,12 @@ const CustomMenuRelationshipView: React.FC<CustomMenuRelationshipViewProps> = ({
                                                                                                                 {
                                                                                                                     group.id
                                                                                                                 }
+
                                                                                                                 "{" "}
                                                                                                                 {
                                                                                                                     "}"
                                                                                                                 }
+
                                                                                                                 ]
                                                                                                             </code>
                                                                                                         </div>

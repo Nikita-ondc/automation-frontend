@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { FaRegPaste } from "react-icons/fa6";
+import { IoArrowBack } from "react-icons/io5";
 import { toast } from "react-toastify";
 import PayloadEditor from "../../mini-components/payload-editor";
 import { SubmitEventParams } from "../../../../types/flow-types";
@@ -19,20 +20,63 @@ export default function SearchTransitFis13({
     submitEvent: (data: SubmitEventParams) => Promise<void>;
 }) {
     const [isPayloadEditorActive, setIsPayloadEditorActive] = useState(false);
-    const [cityCode, setCityCode] = useState("*");
     const [allProviders, setAllProviders] = useState<any[]>([]);
     const [selectedProviderId, setSelectedProviderId] = useState<string>("");
     const [selectedItemId, setSelectedItemId] = useState<string>("");
     const [dynamicInputs, setDynamicInputs] = useState<DynamicInput[]>([]);
+    const [editablePolicyId, setEditablePolicyId] = useState<string>("");
+
+    // Advanced Manual Mode
+    const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+    const [manualProviderId, setManualProviderId] = useState("");
+    const [manualPolicyId, setManualPolicyId] = useState("");
+    const [manualItemId, setManualItemId] = useState("");
+
+    // Manual BAP Inputs for Transit
+    const MANUAL_BAP_INPUTS = [
+        { code: "BUYER_NAME", label: "Buyer Name", type: "text" },
+        { code: "BUYER_PHONE_NUMBER", label: "Buyer Phone Number", type: "tel" },
+        { code: "BUYER_PAN_NUMBER", label: "Buyer Pan Number", type: "text" },
+        { code: "DERIVED_DATA", label: "Derived Data", type: "text" },
+        { code: "PRODUCT_CATEGORY", label: "Product Category", type: "text" },
+        { code: "ORDER_ID", label: "Order Id", type: "text" },
+        { code: "ORDER_VALUE", label: "Order Value", type: "text" },
+        { code: "ORDER_TYPE", label: "Order Type", type: "text" },
+        { code: "ORDER_WEIGHT", label: "Order Weight", type: "text" },
+        { code: "START_ADDRESS", label: "Start Address", type: "text" },
+        { code: "END_ADDRESS", label: "End Address", type: "text" },
+        { code: "PAYMENT_MODE", label: "Payment Mode", type: "text" },
+        { code: "TRANSIT_START_DATE", label: "Transit Start Date", type: "date" },
+        { code: "TRANSIT_END_DATE", label: "Transit End Date", type: "date" },
+        { code: "PACKAGING_TYPE", label: "Packaging Type", type: "text" },
+        { code: "PACKAGING_VIDEO", label: "Packaging Video", type: "text" },
+        { code: "SEALING_TYPE", label: "Sealing Type", type: "text" },
+        { code: "WATERPROOFING", label: "Waterproofing", type: "text" },
+        { code: "MODE_OF_TRANSPORT", label: "Mode Of Transport", type: "text" },
+        { code: "LOGISTICS_COST", label: "Logistics Cost", type: "text" },
+        { code: "ORDERS_ONTIME_PCT", label: "Orders Ontime Pct", type: "text" },
+        { code: "LOGISTICS_PARTNER_GSTIN", label: "Logistics Partner Gstin", type: "text" },
+        { code: "DELIVERY_EXECUTIVE_NAME", label: "Delivery Executive Name", type: "text" },
+        { code: "DELIVERY_EXECUTIVE_PHONE_NO", label: "Delivery Executive Phone No", type: "tel" },
+        { code: "DELIVERY_EXECUTIVE_UNIQUE_ID", label: "Delivery Executive Unique Id", type: "text" },
+        { code: "DELIVERY_EXECUTIVE_VEHICLE_NO", label: "Delivery Executive Vehicle No", type: "text" },
+    ];
 
     const { register, handleSubmit } = useForm();
-
     const selectedProvider = allProviders.find(p => p.id === selectedProviderId);
     const availableItems = selectedProvider?.items || [];
 
+    // Extract Policy ID from selected provider
+    const extractedPolicyId = selectedProvider?.tags?.find((t: any) => t.descriptor?.code === "MASTER_POLICY")
+        ?.list?.find((l: any) => l.descriptor?.code === "POLICY_ID")?.value || "";
+
+    // Sync editable policy ID when provider changes
+    useEffect(() => {
+        setEditablePolicyId(extractedPolicyId);
+    }, [extractedPolicyId]);
+
     const handlePaste = (payload: any) => {
         try {
-            const context = payload?.context;
             const message = payload?.message;
             const providers = message?.catalog?.providers;
 
@@ -40,8 +84,6 @@ export default function SearchTransitFis13({
                 throw new Error("Invalid payload: No providers found");
             }
 
-            const extractedCityCode = context?.location?.city?.code || "*";
-            setCityCode(extractedCityCode);
             setAllProviders(providers);
 
             // Auto-select first provider and first item
@@ -50,6 +92,9 @@ export default function SearchTransitFis13({
 
             setSelectedProviderId(firstProvider.id);
             setSelectedItemId(firstItem?.id || "");
+
+            // Close manual section when payload is pasted
+            setIsAdvancedOpen(false);
 
             setIsPayloadEditorActive(false);
             toast.success("Payload parsed successfully");
@@ -108,16 +153,13 @@ export default function SearchTransitFis13({
             return 'text';
         }
 
-
         if (upperCode.includes('AGE') || upperCode.includes('AMOUNT') ||
             upperCode.includes('PINCODE') || upperCode.includes('PIN_CODE')) {
             return 'number';
         }
 
-
         return 'text';
     };
-
 
     const formatLabel = (code: string): string => {
         return code
@@ -126,12 +168,9 @@ export default function SearchTransitFis13({
             .join(' ');
     };
 
-
     const renderInputField = (input: DynamicInput) => {
         const inputType = getInputType(input.descriptor.code);
         const label = formatLabel(input.descriptor.code);
-
-
 
         return (
             <div key={input.descriptor.code} className="space-y-1">
@@ -141,7 +180,6 @@ export default function SearchTransitFis13({
                 <input
                     type={inputType}
                     {...register(input.descriptor.code)}
-
                     className={inputStyle}
                 />
             </div>
@@ -177,7 +215,6 @@ export default function SearchTransitFis13({
                 tags: provider.tags,
                 items: provider.items.filter((item: any) => item.id === selectedItemId),
             },
-            city_code: cityCode,
         };
 
         await submitEvent({
@@ -186,102 +223,322 @@ export default function SearchTransitFis13({
         });
     };
 
-    const inputStyle = "border rounded-lg p-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50 border-gray-200 transition-all";
-    const labelStyle = "mb-1.5 font-medium block text-gray-700 text-sm";
-    const sectionTitleStyle = "text-lg font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100";
+    const onManualSubmit = async (formData: any) => {
+        if (!manualProviderId || !manualItemId) {
+            toast.error("Please fill in Provider ID and Item ID");
+            return;
+        }
+
+        const bapInputsList = MANUAL_BAP_INPUTS.map(input => ({
+            descriptor: { code: input.code },
+            value: formData[`manual_${input.code}`] || ""
+        }));
+
+        const finalOutput = {
+            provider: {
+                id: manualProviderId,
+                tags: [{
+                    descriptor: { code: "MASTER_POLICY" },
+                    list: [{ descriptor: { code: "POLICY_ID" }, value: manualPolicyId }]
+                }],
+                items: [{
+                    id: manualItemId,
+                    tags: [{
+                        descriptor: { code: "BAP_INPUTS" },
+                        list: bapInputsList
+                    }]
+                }]
+            },
+        };
+
+        await submitEvent({
+            jsonPath: {},
+            formData: finalOutput as any,
+        });
+    };
+
+    const inputStyle = "w-full p-2 border border-gray-300 rounded text-sm";
+    const labelStyle = "block text-sm font-medium text-gray-600 mb-1";
+
+    const hasData = allProviders.length > 0;
 
     return (
-        <div className="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-lg border border-gray-100">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Transit Insurance Search</h2>
-                    <p className="text-gray-500 text-sm mt-1">Configure your search parameters for transit insurance</p>
-                </div>
-                <button
-                    type="button"
-                    onClick={() => setIsPayloadEditorActive(true)}
-                    className="flex items-center gap-2 py-2.5 px-4 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-all font-medium border border-blue-100"
-                >
-                    <FaRegPaste size={18} />
-                    <span>Paste on_search</span>
-                </button>
-            </div>
-
-            {isPayloadEditorActive && <PayloadEditor onAdd={handlePaste} />}
-
-            {allProviders.length > 0 ? (
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-                    <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-xs text-blue-600 font-bold uppercase tracking-wider block mb-2">Provider ID</label>
-                                <select
-                                    value={selectedProviderId}
-                                    onChange={(e) => {
-                                        setSelectedProviderId(e.target.value);
-                                        const newProvider = allProviders.find(p => p.id === e.target.value);
-                                        setSelectedItemId(newProvider?.items?.[0]?.id || "");
-                                    }}
-                                    className="w-full p-2 bg-white border border-blue-200 rounded-lg text-gray-900 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    {allProviders.map((provider) => (
-                                        <option key={provider.id} value={provider.id}>
-                                            {provider.descriptor?.name || provider.id}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-xs text-blue-600 font-bold uppercase tracking-wider block mb-2">Item ID</label>
-                                <select
-                                    value={selectedItemId}
-                                    onChange={(e) => setSelectedItemId(e.target.value)}
-                                    className="w-full p-2 bg-white border border-blue-200 rounded-lg text-gray-900 font-medium text-sm focus:outline-none focus:border-blue-500 cursor-pointer"
-                                >
-                                    {availableItems.map((item: any) => (
-                                        <option key={item.id} value={item.id}>
-                                            {item.id}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+        <div className="p-4">
+            {/* Show Paste Section when manual mode is NOT open */}
+            {!isAdvancedOpen && (
+                <>
+                    {/* Top Row: Paste Button + Hint */}
+                    <div className="flex items-center gap-4 mb-6">
+                        <button
+                            type="button"
+                            onClick={() => setIsPayloadEditorActive(true)}
+                            className="flex items-center gap-2 py-2.5 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all font-medium shadow-sm"
+                        >
+                            <FaRegPaste size={18} />
+                            <span>Paste Payload</span>
+                        </button>
+                        <span className="text-sm text-amber-700 bg-amber-50 border border-amber-200 px-4 py-2 rounded-lg">
+                            Please paste the payload (on_search) to load item options.
+                        </span>
                     </div>
 
-                    {dynamicInputs.length > 0 ? (
-                        <div>
-                            <h3 className={sectionTitleStyle}>Dynamic Inputs</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-                                {dynamicInputs.map((input) => renderInputField(input))}
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 bg-amber-50 border border-amber-200 rounded-xl">
-                            <p className="text-amber-700 font-medium">No BAP_INPUTS found for selected item</p>
-                        </div>
-                    )}
+                    {isPayloadEditorActive && <PayloadEditor onAdd={handlePaste} onClose={() => setIsPayloadEditorActive(false)} />}
 
-                    <div className="pt-4">
+                    {/* Main Form Section */}
+                    <form onSubmit={handleSubmit(onSubmit)}>
+                        <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 mb-6">
+                            <h3 className="text-base font-semibold text-gray-800 mb-4">Select Items</h3>
+
+                            {hasData ? (
+                                <div className="space-y-6">
+                                    {/* Selection Grid */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                            <label className={labelStyle}>Provider ID</label>
+                                            <select
+                                                value={selectedProviderId}
+                                                onChange={(e) => {
+                                                    setSelectedProviderId(e.target.value);
+                                                    const newProvider = allProviders.find(p => p.id === e.target.value);
+                                                    setSelectedItemId(newProvider?.items?.[0]?.id || "");
+                                                }}
+                                                className={inputStyle}
+                                            >
+                                                {allProviders.map((provider) => (
+                                                    <option key={provider.id} value={provider.id}>
+                                                        {provider.id}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className={labelStyle}>Policy ID</label>
+                                            <input
+                                                type="text"
+                                                value={editablePolicyId}
+                                                onChange={(e) => setEditablePolicyId(e.target.value)}
+                                                className={inputStyle}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={labelStyle}>Item ID</label>
+                                            <select
+                                                value={selectedItemId}
+                                                onChange={(e) => setSelectedItemId(e.target.value)}
+                                                className={inputStyle}
+                                            >
+                                                {availableItems.map((item: any) => (
+                                                    <option key={item.id} value={item.id}>
+                                                        {item.id}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* BAP Inputs */}
+                                    {dynamicInputs.length > 0 && (
+                                        <div className="pt-4 border-t border-gray-100">
+                                            <h4 className="text-sm font-semibold text-gray-700 mb-4">Buyer Details</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {dynamicInputs.map((input) => renderInputField(input))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="py-10 text-center text-gray-400">
+                                    No items loaded. Please paste a payload first.
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Submit Button */}
                         <button
                             type="submit"
-                            className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-[0.98]"
+                            disabled={!hasData}
+                            className={`w-full py-3 rounded-lg font-semibold transition-all ${hasData
+                                ? "bg-blue-600 text-white hover:bg-blue-700 shadow-md"
+                                : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                                }`}
                         >
                             Submit
                         </button>
-                    </div>
-                </form >
-            ) : (
-                <div className="py-20 text-center border-2 border-dashed border-gray-100 rounded-2xl bg-gray-50/30">
-                    <div className="bg-white p-4 rounded-full shadow-sm inline-block mb-4 text-blue-500">
-                        <FaRegPaste size={32} />
-                    </div>
-                    <h3 className="text-lg font-semibold text-gray-800">No Data Available</h3>
-                    <p className="text-gray-500 max-w-sm mx-auto mt-2">
-                        Please paste the <code className="bg-gray-100 px-1.5 py-0.5 rounded text-blue-600 font-medium">on_search</code> payload to initialize the form fields.
-                    </p>
+                    </form>
+
+                    {/* Advanced: Add Item Manually - show only when no payload data */}
+                    {!hasData && !isPayloadEditorActive && (
+                        <details
+                            className="mt-6"
+                            open={isAdvancedOpen}
+                            onToggle={(e) => setIsAdvancedOpen((e.target as HTMLDetailsElement).open)}
+                        >
+                            <summary className="cursor-pointer text-sm font-medium text-gray-600 hover:text-gray-800 py-2">
+                                ▶ Advanced: Add Item Manually
+                            </summary>
+                            <form onSubmit={handleSubmit(onManualSubmit)} className="mt-4 space-y-6">
+                                {/* Manual Selection Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label className={labelStyle}>Provider ID</label>
+                                        <input
+                                            type="text"
+                                            value={manualProviderId}
+                                            onChange={(e) => setManualProviderId(e.target.value)}
+                                            placeholder="e.g. s1"
+                                            className={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelStyle}>Policy ID</label>
+                                        <input
+                                            type="text"
+                                            value={manualPolicyId}
+                                            onChange={(e) => setManualPolicyId(e.target.value)}
+                                            placeholder="e.g. pl-120"
+                                            className={inputStyle}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelStyle}>Item ID</label>
+                                        <input
+                                            type="text"
+                                            value={manualItemId}
+                                            onChange={(e) => setManualItemId(e.target.value)}
+                                            placeholder="e.g. I1"
+                                            className={inputStyle}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Manual Buyer Details */}
+                                <div className="pt-4 border-t border-gray-200">
+                                    <h4 className="text-sm font-semibold text-gray-700 mb-4">Buyer Details</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                        {MANUAL_BAP_INPUTS.map((input) => (
+                                            <div key={input.code}>
+                                                <label className={labelStyle}>{input.label}</label>
+                                                {input.type === "select" ? (
+                                                    <select
+                                                        {...register(`manual_${input.code}`)}
+                                                        className={inputStyle}
+                                                    >
+                                                        <option value="">Select...</option>
+                                                        <option value="Male">Male</option>
+                                                        <option value="Female">Female</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                ) : (
+                                                    <input
+                                                        type={input.type}
+                                                        {...register(`manual_${input.code}`)}
+                                                        className={inputStyle}
+                                                    />
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Manual Submit Button */}
+                                <button
+                                    type="submit"
+                                    className="w-full py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all"
+                                >
+                                    Submit
+                                </button>
+                            </form>
+                        </details>
+                    )}
+                </>
+            )}
+
+            {/* Show ONLY Manual Section when isAdvancedOpen is true */}
+            {isAdvancedOpen && (
+                <div>
+                    <button
+                        type="button"
+                        onClick={() => setIsAdvancedOpen(false)}
+                        className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 mb-4"
+                    >
+                        <IoArrowBack size={16} />
+                        <span>Back to Paste Payload</span>
+                    </button>
+                    <h3 className="text-base font-semibold text-gray-800 mb-4">Add Item Manually</h3>
+                    <form onSubmit={handleSubmit(onManualSubmit)} className="space-y-6">
+                        {/* Manual Selection Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className={labelStyle}>Provider ID</label>
+                                <input
+                                    type="text"
+                                    value={manualProviderId}
+                                    onChange={(e) => setManualProviderId(e.target.value)}
+                                    placeholder="e.g. s1"
+                                    className={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelStyle}>Policy ID</label>
+                                <input
+                                    type="text"
+                                    value={manualPolicyId}
+                                    onChange={(e) => setManualPolicyId(e.target.value)}
+                                    placeholder="e.g. pl-120"
+                                    className={inputStyle}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelStyle}>Item ID</label>
+                                <input
+                                    type="text"
+                                    value={manualItemId}
+                                    onChange={(e) => setManualItemId(e.target.value)}
+                                    placeholder="e.g. I1"
+                                    className={inputStyle}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Manual Buyer Details */}
+                        <div className="pt-4 border-t border-gray-200">
+                            <h4 className="text-sm font-semibold text-gray-700 mb-4">Buyer Details</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                {MANUAL_BAP_INPUTS.map((input) => (
+                                    <div key={input.code}>
+                                        <label className={labelStyle}>{input.label}</label>
+                                        {input.type === "select" ? (
+                                            <select
+                                                {...register(`manual_${input.code}`)}
+                                                className={inputStyle}
+                                            >
+                                                <option value="">Select...</option>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        ) : (
+                                            <input
+                                                type={input.type}
+                                                {...register(`manual_${input.code}`)}
+                                                className={inputStyle}
+                                            />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Manual Submit Button */}
+                        <button
+                            type="submit"
+                            className="w-full py-3 rounded-lg font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-all"
+                        >
+                            Submit
+                        </button>
+                    </form>
                 </div>
-            )
-            }
-        </div >
+            )}
+        </div>
     );
 }

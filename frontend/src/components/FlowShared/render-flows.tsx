@@ -33,6 +33,27 @@ import FilterFlowsMenu from "@components/FlowShared/filter-flows";
 import { openReportInNewTab } from "@utils/generic-utils";
 import GenerateReportModal from "@components/FlowShared/GenerateReportModal";
 
+type ExtractedMetadataValue = { name?: string; value: unknown; errorMessage?: string };
+
+type SideViewResponse = {
+    res?: Array<{ response?: Record<string, unknown> }>;
+    [key: string]: unknown;
+};
+
+type SideViewState = {
+    payloadId?: string;
+    request?: Record<string, unknown>;
+    response?: SideViewResponse;
+    [key: string]: unknown;
+};
+
+type SessionPayloadData = Record<string, unknown> | unknown[] | null;
+type SessionSideView = Record<string, unknown> | null;
+type SessionMetadata = Record<string, ExtractedMetadataValue> | null;
+
+const EMPTY_RECORD = {} as Record<string, unknown>;
+const EMPTY_METADATA = {} as Record<string, ExtractedMetadataValue>;
+
 function extractMetadataFromFlows(flows: Flow[]): Record<string, MetadataField[]> {
     const flowMetadataMap: Record<string, MetadataField[]> = {};
 
@@ -72,9 +93,8 @@ function extractMetadataByFlowName(
 function extractMetadataValues(
     payload: Record<string, unknown> | Record<string, unknown>[],
     metadataFields: MetadataField[]
-): Record<string, { name?: string; value: unknown; errorMessage?: string }> {
-    const extractedData: Record<string, { name?: string; value: unknown; errorMessage?: string }> =
-        {};
+): Record<string, ExtractedMetadataValue> {
+    const extractedData: Record<string, ExtractedMetadataValue> = {};
 
     metadataFields.forEach((meta) => {
         try {
@@ -127,22 +147,26 @@ function RenderFlows({
     const [activeFlow, setActiveFlow] = useState<string | null>(null);
     const activeFlowRef = useRef<string | null>(activeFlow);
     const [cacheSessionData, setCacheSessionData] = useState<SessionCache | null>(null);
-    const [sideView, setSideView] = useState<any>({});
-    const [difficultyCache, setDifficultyCache] = useState<any>({});
+    const [sideView, setSideView] = useState<SideViewState>({});
+    const [difficultyCache, setDifficultyCache] = useState<SessionCache["sessionDifficulty"]>(
+        {} as SessionCache["sessionDifficulty"]
+    );
     const [isFlowStopped, setIsFlowStopped] = useState<boolean>(false);
     const [selectedTab, setSelectedTab] = useState<"Request" | "Response" | "Metadata" | "Guide">(
         "Request"
     );
-    const [requestData, setRequestData] = useState({});
-    const [responseData, setResponseData] = useState({});
-    const [metadata, setMetadata] = useState({});
+    const [requestData, setRequestData] = useState<Record<string, unknown>>({});
+    const [responseData, setResponseData] = useState<Record<string, unknown> | SideViewResponse>(
+        {}
+    );
+    const [metadata, setMetadata] = useState<Record<string, ExtractedMetadataValue>>({});
     const apiCallFailCount = useRef(0);
     const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
     const [isGuideOpen, setIsGuideOpen] = useState(false);
     const navigate = useNavigate();
     const { setSessionId } = useSession();
-    const pollingRef = useRef<any>(null);
-    const timeoutRef = useRef<any>(null);
+    const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isPolling, setIsPolling] = useState(false);
     const [gotReport, setGotReport] = useState(false);
     const [flowTags, setFlowTags] = useState<string[]>([]);
@@ -208,9 +232,9 @@ function RenderFlows({
         if (sideView?.payloadId) {
             test();
         } else {
-            setRequestData(sideView || {});
-            setResponseData(sideView || {});
-            setMetadata({});
+            setRequestData(sideView || EMPTY_RECORD);
+            setResponseData(sideView || EMPTY_RECORD);
+            setMetadata(EMPTY_METADATA);
         }
 
         extractMetadataFromFlows(flows);
@@ -219,9 +243,9 @@ function RenderFlows({
     const test = async () => {
         try {
             // ✅ Fetch payload
-            const data = await getCompletePayload([sideView.payloadId]);
+            const data = await getCompletePayload([(sideView.payloadId as string) ?? ""]);
 
-            const requestPayload = data?.[0]?.req || {};
+            const requestPayload = (data?.[0]?.req ?? EMPTY_RECORD) as Record<string, unknown>;
             let responsePayload: Record<string, unknown> = {};
 
             // ✅ Extract response payload safely
@@ -237,7 +261,7 @@ function RenderFlows({
             // ✅ Extract metadata if flows are available
             handleMetadataExtraction(requestPayload);
         } catch (error: unknown) {
-            const requestPayload = sideView?.request || {};
+            const requestPayload = sideView?.request ?? EMPTY_RECORD;
             let responsePayload: Record<string, unknown> = {};
 
             if (sideView?.response?.res?.[0]?.response) {
@@ -258,16 +282,16 @@ function RenderFlows({
     /**
      * Helper function to handle metadata extraction from flows
      */
-    const handleMetadataExtraction = (requestPayload: Record<string, any>) => {
+    const handleMetadataExtraction = (requestPayload: Record<string, unknown>) => {
         if (!flows || flows.length === 0) {
-            setMetadata({});
+            setMetadata(EMPTY_METADATA);
             return;
         }
 
         const flowMetadataMap = extractMetadataFromFlows(flows);
 
         if (!Object.keys(flowMetadataMap).length) {
-            setMetadata({});
+            setMetadata(EMPTY_METADATA);
             return;
         }
 
@@ -285,7 +309,7 @@ function RenderFlows({
             const Metadata = extractMetadataValues(requestPayload, metadataToUse);
             setMetadata(Metadata);
         } else {
-            setMetadata({});
+            setMetadata(EMPTY_METADATA);
         }
     };
 
@@ -299,7 +323,7 @@ function RenderFlows({
         if (flows && flows.length > 0) {
             handleMetadataExtraction(requestData);
         } else {
-            setMetadata({});
+            setMetadata(EMPTY_METADATA);
         }
     }, [flows, requestData, responseData]);
 
@@ -339,9 +363,9 @@ function RenderFlows({
     }
 
     const handleClearFlow = () => {
-        setRequestData({});
-        setResponseData({});
-        setMetadata({});
+        setRequestData(EMPTY_RECORD);
+        setResponseData(EMPTY_RECORD);
+        setMetadata(EMPTY_METADATA);
         fetchSessionData();
     };
 
@@ -355,12 +379,20 @@ function RenderFlows({
                 selectedTab: selectedTab,
                 requestData,
                 responseData,
-                sideView,
-                metadata,
-                setRequestData: setRequestData,
-                setResponseData: setResponseData,
-                setSideView: setSideView,
-                setMetadata: setMetadata,
+                sideView: sideView as unknown as SessionSideView,
+                metadata: metadata as unknown as SessionMetadata,
+                setRequestData: setRequestData as unknown as React.Dispatch<
+                    React.SetStateAction<SessionPayloadData>
+                >,
+                setResponseData: setResponseData as unknown as React.Dispatch<
+                    React.SetStateAction<SessionPayloadData>
+                >,
+                setSideView: setSideView as unknown as React.Dispatch<
+                    React.SetStateAction<SessionSideView>
+                >,
+                setMetadata: setMetadata as unknown as React.Dispatch<
+                    React.SetStateAction<SessionMetadata>
+                >,
                 setActiveCallClickedToggle: setActiveCallClickedToggle,
                 activeCallClickedToggle: activeCallClickedToggle,
             }}
@@ -596,7 +628,7 @@ function RenderFlows({
                                     sessionId={sessionId}
                                     setActiveFlow={setActiveFlow}
                                     sessionCache={cacheSessionData}
-                                    setSideView={setSideView}
+                                    setSideView={setSideView as unknown as React.Dispatch<unknown>}
                                     subUrl={subUrl}
                                     onFlowStop={() => setIsFlowStopped(true)}
                                     onFlowClear={() => handleClearFlow()}
@@ -662,34 +694,31 @@ function RenderFlows({
                                                             </tr>
                                                         </thead>
                                                         <tbody>
-                                                            {Object.entries(metadata).map(
-                                                                (
-                                                                    [key, data]: [string, any],
-                                                                    index
-                                                                ) => (
-                                                                    <tr
-                                                                        key={index}
-                                                                        className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
-                                                                    >
-                                                                        <td className="py-2 px-3 text-gray-400">
-                                                                            {key}
-                                                                        </td>
-                                                                        <td className="py-2 px-3 text-gray-200 whitespace-pre-wrap break-words">
-                                                                            {typeof data.value ===
-                                                                                "object" &&
-                                                                            data.value !== null
-                                                                                ? JSON.stringify(
-                                                                                      data.value,
-                                                                                      null,
-                                                                                      2
-                                                                                  )
-                                                                                : String(
-                                                                                      data.value
-                                                                                  )}
-                                                                        </td>
-                                                                    </tr>
-                                                                )
-                                                            )}
+                                                            {(
+                                                                Object.entries(metadata) as Array<
+                                                                    [string, ExtractedMetadataValue]
+                                                                >
+                                                            ).map(([key, data], index) => (
+                                                                <tr
+                                                                    key={index}
+                                                                    className="border-b border-gray-700 hover:bg-gray-700/50 transition-colors"
+                                                                >
+                                                                    <td className="py-2 px-3 text-gray-400">
+                                                                        {key}
+                                                                    </td>
+                                                                    <td className="py-2 px-3 text-gray-200 whitespace-pre-wrap break-words">
+                                                                        {typeof data.value ===
+                                                                            "object" &&
+                                                                        data.value !== null
+                                                                            ? JSON.stringify(
+                                                                                  data.value,
+                                                                                  null,
+                                                                                  2
+                                                                              )
+                                                                            : String(data.value)}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
                                                         </tbody>
                                                     </table>
                                                 ) : (

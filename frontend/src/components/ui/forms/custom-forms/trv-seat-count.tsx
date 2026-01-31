@@ -87,41 +87,67 @@ import { SubmitEventParams } from "../../../../types/flow-types";
 import { useEffect, useState } from "react";
 import PayloadEditor from "../../mini-components/payload-editor";
 
+type FulfillmentTagListItem = {
+    descriptor: { code: string };
+    value: string;
+};
+
+type FulfillmentTag = {
+    descriptor: { code: string };
+    list: FulfillmentTagListItem[];
+};
+
+type Fulfillment = {
+    type?: string;
+    tags?: FulfillmentTag[];
+};
+
+type OnSelectPayload = {
+    message?: {
+        order?: {
+            fulfillments?: Fulfillment[];
+        };
+    };
+};
+
+type SeatSelectionFormValues = {
+    items: Array<{ seatNumber: string }>;
+};
+
 export default function TRV12busSeatSelection({
     submitEvent,
     payload,
 }: {
     submitEvent: (data: SubmitEventParams) => Promise<void>;
-    payload?: any;
+    payload?: OnSelectPayload;
 }) {
     const [allowedSeatsCount, setAllowedSeatsCount] = useState(0);
     const [availableSeats, setAvailableSeats] = useState<string[]>([]);
     const [isPayloadEditorActive, setIsPayloadEditorActive] = useState(false);
     const [errorWhilePaste, setErrorWhilePaste] = useState("");
 
-    const parseAndSetData = (data: any) => {
+    const parseAndSetData = (data: unknown) => {
         try {
-            if (!data?.message?.order?.fulfillments) {
+            const parsed = data as OnSelectPayload;
+            if (!parsed?.message?.order?.fulfillments) {
                 throw new Error("Invalid payload structure: missing fulfillments");
             }
 
+            const fulfillments = parsed.message.order.fulfillments;
+
             // 1. Calculate allowed seats count (fulfillments of type TICKET)
-            const ticketFulfillments = data.message.order.fulfillments.filter(
-                (f: any) => f.type === "TICKET"
-            );
+            const ticketFulfillments = fulfillments.filter((f) => f.type === "TICKET");
             setAllowedSeatsCount(ticketFulfillments.length);
 
             // 2. Extract available seats (fulfillments of type TRIP -> tags)
-            const tripFulfillment = data.message.order.fulfillments.find(
-                (f: any) => f.type === "TRIP"
-            );
+            const tripFulfillment = fulfillments.find((f) => f.type === "TRIP");
 
             const seats: string[] = [];
             if (tripFulfillment && tripFulfillment.tags) {
-                tripFulfillment.tags.forEach((tag: any) => {
+                tripFulfillment.tags.forEach((tag) => {
                     if (tag.descriptor.code === "SEAT_GRID") {
                         const seatNumberArg = tag.list.find(
-                            (item: any) => item.descriptor.code === "NUMBER"
+                            (item) => item.descriptor.code === "NUMBER"
                         );
                         if (seatNumberArg) {
                             seats.push(seatNumberArg.value);
@@ -145,23 +171,23 @@ export default function TRV12busSeatSelection({
         }
     }, [payload]);
 
-    const handlePaste = (pastedPayload: any) => {
+    const handlePaste = (pastedPayload: unknown) => {
         parseAndSetData(pastedPayload);
         setIsPayloadEditorActive(false);
     };
 
-    const { control, register, handleSubmit } = useForm({
+    const { control, register, handleSubmit } = useForm<SeatSelectionFormValues>({
         defaultValues: {
             items: [{ seatNumber: "" }],
         },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, append, remove } = useFieldArray<SeatSelectionFormValues, "items">({
         control,
         name: "items",
     });
 
-    const watchedItems = useWatch({
+    const watchedItems = useWatch<SeatSelectionFormValues, "items">({
         control,
         name: "items",
     });
@@ -171,16 +197,19 @@ export default function TRV12busSeatSelection({
     const labelStyle = "mb-1 font-semibold";
     const fieldWrapperStyle = "flex flex-col mb-2";
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: SeatSelectionFormValues) => {
         const cleanedData = {
             items: data.items
-                .map((item: any) => ({
+                .map((item) => ({
                     seatNumber: item.seatNumber?.trim(),
                 }))
-                .filter((item: any) => item.seatNumber !== ""),
+                .filter((item) => item.seatNumber !== ""),
         };
 
-        await submitEvent({ jsonPath: {}, formData: cleanedData });
+        await submitEvent({
+            jsonPath: {},
+            formData: cleanedData as unknown as Record<string, string>,
+        });
     };
 
     return (
@@ -224,8 +253,8 @@ export default function TRV12busSeatSelection({
                                     {availableSeats
                                         .filter((seat) => {
                                             const otherSelectedSeats = watchedItems
-                                                ?.filter((_: any, i: number) => i !== index)
-                                                .map((item: any) => item.seatNumber);
+                                                ?.filter((_, i) => i !== index)
+                                                .map((item) => item.seatNumber);
                                             return !otherSelectedSeats?.includes(seat);
                                         })
                                         .map((seat) => (

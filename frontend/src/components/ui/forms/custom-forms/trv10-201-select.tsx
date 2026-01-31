@@ -47,8 +47,15 @@ export default function RideHailingSelect({ submitEvent }: IRideHailingSelectPro
     // Get items for selected provider
     const availableItems = selectedProvider?.items || [];
 
-    // Get ALL fulfillments from selected provider (not filtered by item)
-    const availableFulfillments = selectedProvider?.fulfillments || [];
+    // Get the selected item to find its linked fulfillment_ids
+    const selectedItem = availableItems.find((item) => item.id === selectedItemId);
+
+    // Get only fulfillments that are linked to the selected item
+    const availableFulfillments = selectedItem
+        ? (selectedProvider?.fulfillments || []).filter((f) =>
+              selectedItem.fulfillment_ids.includes(f.id)
+          )
+        : [];
 
     /* ------------------- HANDLE PASTE ------------------- */
     const handlePaste = (payload: any) => {

@@ -4,6 +4,15 @@ import { toast } from "react-toastify";
 import MockRunner from "@ondc/automation-mock-runner";
 // import { getDefaultStep } from "../mock-engine";
 
+type UpdateActionFormData = {
+    api: string;
+    actionId: string;
+    owner: string;
+    unsolicited: string;
+    responseFor?: string | null;
+    description: string;
+};
+
 // hooks/usePlaygroundActions.ts
 export const usePlaygroundActions = () => {
     const playgroundContext = useContext(PlaygroundContext);
@@ -44,7 +53,8 @@ export const usePlaygroundActions = () => {
         return false;
     };
 
-    const updateAction = (actionId: string, formData: any) => {
+    const updateAction = (actionId: string, formData: unknown) => {
+        const data = formData as UpdateActionFormData;
         const currentConfig = playgroundContext.config;
         if (!currentConfig) return false;
 
@@ -54,12 +64,12 @@ export const usePlaygroundActions = () => {
         if (stepIndex !== -1) {
             updatedConfig.steps[stepIndex] = {
                 ...updatedConfig.steps[stepIndex],
-                api: formData.api,
-                action_id: formData.actionId,
-                owner: formData.owner as "BAP" | "BPP",
-                unsolicited: formData.unsolicited === "yes",
-                responseFor: formData.responseFor || null,
-                description: formData.description,
+                api: data.api,
+                action_id: data.actionId,
+                owner: data.owner as "BAP" | "BPP",
+                unsolicited: data.unsolicited === "yes",
+                responseFor: data.responseFor || null,
+                description: data.description,
             };
             playgroundContext.setCurrentConfig(updatedConfig);
             return true;

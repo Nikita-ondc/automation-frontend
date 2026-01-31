@@ -1,6 +1,11 @@
 import { createContext, ReactNode, useContext, useState, Dispatch, SetStateAction } from "react";
 import { SessionCache } from "../types/session-types";
 
+type SessionPayloadData = Record<string, unknown> | unknown[] | null;
+type SessionSideView = Record<string, unknown> | null;
+type SessionMetadataValue = { name?: string; value: unknown; errorMessage?: string };
+type SessionMetadata = Record<string, SessionMetadataValue> | null;
+
 interface SessionContextProps {
     sessionId: string;
     setSessionId: Dispatch<SetStateAction<string>>;
@@ -10,14 +15,14 @@ interface SessionContextProps {
     setSessionData?: Dispatch<SetStateAction<SessionCache | null>>;
     selectedTab: "Request" | "Response" | "Metadata" | "Guide";
     setSelectedTab?: Dispatch<SetStateAction<"Request" | "Response" | "Metadata" | "Guide">>;
-    requestData: any;
-    setRequestData: Dispatch<SetStateAction<any>>;
-    responseData: any;
-    setResponseData: Dispatch<SetStateAction<any>>;
-    sideView: any;
-    setSideView: React.Dispatch<React.SetStateAction<any>>;
-    metadata: any;
-    setMetadata: React.Dispatch<React.SetStateAction<any>>;
+    requestData: SessionPayloadData;
+    setRequestData: Dispatch<SetStateAction<SessionPayloadData>>;
+    responseData: SessionPayloadData;
+    setResponseData: Dispatch<SetStateAction<SessionPayloadData>>;
+    sideView: SessionSideView;
+    setSideView: Dispatch<SetStateAction<SessionSideView>>;
+    metadata: SessionMetadata;
+    setMetadata: Dispatch<SetStateAction<SessionMetadata>>;
     setActiveCallClickedToggle: React.Dispatch<React.SetStateAction<boolean>>;
     activeCallClickedToggle: boolean;
 }
@@ -31,11 +36,11 @@ export const SessionProvider = ({ children }: { children: ReactNode }) => {
     const [selectedTab, setSelectedTab] = useState<"Request" | "Response" | "Metadata" | "Guide">(
         "Request"
     );
-    const [requestData, setRequestData] = useState<any>(null);
-    const [responseData, setResponseData] = useState<any>(null);
+    const [requestData, setRequestData] = useState<SessionPayloadData>(null);
+    const [responseData, setResponseData] = useState<SessionPayloadData>(null);
     const [activeCallClickedToggle, setActiveCallClickedToggle] = useState<boolean>(false);
-    const [sideView, setSideView] = useState<any>(null);
-    const [metadata, setMetadata] = useState<any>(null);
+    const [sideView, setSideView] = useState<SessionSideView>(null);
+    const [metadata, setMetadata] = useState<SessionMetadata>(null);
 
     return (
         <SessionContext.Provider

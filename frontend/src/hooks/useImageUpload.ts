@@ -59,7 +59,7 @@ export const useMultiImageUpload = (initialValues: string[] = []) => {
 };
 
 // Hook for managing form-specific image state (combines multiple image types)
-export const useFormImageState = <T extends Record<string, any>>(initialState: T) => {
+export const useFormImageState = <T extends Record<string, unknown>>(initialState: T) => {
     const [imageState, setImageState] = useState<T>(initialState);
 
     const updateImageField = useCallback(<K extends keyof T>(field: K, value: T[K]) => {

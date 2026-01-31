@@ -11,27 +11,41 @@ interface SelectedItem {
     id: string;
     customisations: string[];
     relation: Record<string, string>;
-    lastCustomisation?: string;
+    lastCustomisation?: string[];
 }
+
+type ItemList = Record<string, string>;
+type CategoryList = Record<
+    string,
+    { child?: string[]; items?: Record<string, { child: string[] }> }
+>;
+type CustomisationToGroupMapping = Record<string, string>;
+
+type ItemCustomisationSelectorProps = {
+    name: string;
+    label: string;
+    setValue?: (name: string, value: SelectedItem[]) => void;
+};
 
 const ItemCustomisationSelector = ({
     // register,
     name,
     label,
     setValue,
-}: any) => {
+}: ItemCustomisationSelectorProps) => {
     const [items, setItems] = useState<SelectedItem[]>([
         { id: "", customisations: [], relation: {} },
     ]);
-    const [catalogData, setCatalogData] = useState(null);
+    const [catalogData, setCatalogData] = useState<unknown | null>(null);
     const [errroWhilePaste, setErrroWhilePaste] = useState("");
-    const [itemsList, setItemsList] = useState<any>({});
-    const [categoryList, setCategoryList] = useState<any>({});
-    const [groupMapping, setGroupMapping] = useState<any>({});
+    const [itemsList, setItemsList] = useState<ItemList>({});
+    const [categoryList, setCategoryList] = useState<CategoryList>({});
+    const [groupMapping, setGroupMapping] = useState<CustomisationToGroupMapping>({});
     const [isPayloadEditorActive, setIsPayloadEditorActive] = useState(false);
+    const hasCatalogData = catalogData != null;
 
     useEffect(() => {
-        setValue(name, items);
+        setValue?.(name, items);
     }, [items]);
 
     const handleItemChange = (index: number, value: string) => {
@@ -46,7 +60,9 @@ const ItemCustomisationSelector = ({
             updated[index].relation[`${value}`] = groupMapping[value];
             updated[index].customisations.push(value);
             if (group) {
-                updated[index].lastCustomisation = categoryList[group].items[value].child;
+                updated[index].lastCustomisation = (
+                    categoryList[group].items as Record<string, { child: string[] }>
+                )[value].child;
             }
             setItems(updated);
         }
@@ -60,25 +76,27 @@ const ItemCustomisationSelector = ({
         setItems((prev) => prev.filter((_, i) => i !== index));
     };
 
-    const handlePaste = async (parsedText: any) => {
+    const handlePaste = async (parsedText: unknown) => {
         setIsPayloadEditorActive(false);
 
         try {
-            if (!parsedText?.context?.domain) {
+            const payload = parsedText as Parameters<typeof getItemsAndCustomistions>[0];
+            if (!payload?.context?.domain) {
                 throw new Error("Domain not present");
             }
 
-            if (!parsedText?.message?.catalog?.["bpp/providers"]) {
+            if (!payload?.message?.catalog?.["bpp/providers"]) {
                 throw new Error("Providers not presnt");
             }
 
             setCatalogData(parsedText);
-            const response = getItemsAndCustomistions(parsedText);
+            const response = getItemsAndCustomistions(payload);
             setItemsList(response?.itemList || {});
             setCategoryList(response?.catagoriesList || {});
             setGroupMapping(response?.cutomistionToGroupMapping || {});
-        } catch (err: any) {
-            setErrroWhilePaste(err.message || "Something went wrong");
+        } catch (err: unknown) {
+            const e = err as { message?: string };
+            setErrroWhilePaste(e.message || "Something went wrong");
             console.error("Error while handling paste: ", err);
         }
     };
@@ -101,7 +119,7 @@ const ItemCustomisationSelector = ({
                     </button>
                 </>
 
-                {catalogData && (
+                {hasCatalogData && (
                     <button
                         type="button"
                         onClick={addItem}
@@ -112,16 +130,16 @@ const ItemCustomisationSelector = ({
                 )}
             </div>
 
-            {catalogData ? (
+            {hasCatalogData ? (
                 <>
-                    {items.map((item: any, index: number) => {
-                        let availableCustomisations: any = [];
+                    {items.map((item: SelectedItem, index: number) => {
+                        let availableCustomisations: string[] = [];
 
                         if (item?.id) {
-                            let customisationsObj: any = {};
+                            let customisationsObj: Record<string, { child: string[] }> = {};
 
                             if (item?.lastCustomisation) {
-                                item.lastCustomisation.forEach((lastCustom: any) => {
+                                item.lastCustomisation.forEach((lastCustom: string) => {
                                     customisationsObj = {
                                         ...customisationsObj,
                                         ...categoryList[lastCustom]?.items,
@@ -193,7 +211,7 @@ const ItemCustomisationSelector = ({
                                                 }
                                             >
                                                 <option value="">Select Customisation</option>
-                                                {availableCustomisations.map((c: any) => (
+                                                {availableCustomisations.map((c: string) => (
                                                     <option key={c} value={c}>
                                                         {c}
                                                     </option>
@@ -202,7 +220,7 @@ const ItemCustomisationSelector = ({
                                         </div>
 
                                         <div className="flex flex-wrap gap-2 mt-2">
-                                            {item.customisations.map((c: any, i: number) => (
+                                            {item.customisations.map((c: string, i: number) => (
                                                 <span
                                                     key={i}
                                                     className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"

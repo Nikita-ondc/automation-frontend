@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm, useFieldArray, FieldPath } from "react-hook-form";
 import { FaRegPaste } from "react-icons/fa6";
 import PayloadEditor from "../../mini-components/payload-editor";
 import { SubmitEventParams } from "../../../../types/flow-types";
@@ -9,6 +9,24 @@ interface ExtractedItem {
     itemid: string;
     providerid: string;
 }
+
+type FormItem = {
+    itemId: string;
+    count: number;
+    addOns?: string[];
+    location?: string;
+};
+
+type FormValues = {
+    provider: string;
+    items: FormItem[];
+    fulfillment?: string;
+};
+
+type CatalogItem = { id: string };
+type CatalogFulfillment = { id: string };
+type CatalogProvider = { id: string; fulfillments: CatalogFulfillment[]; items?: CatalogItem[] };
+type OnSearchPayload = { message?: { catalog?: { providers?: CatalogProvider[] } } };
 
 // [
 //   {
@@ -26,42 +44,43 @@ export default function TRV11Select({
     const [isPayloadEditorActive, setIsPayloadEditorActive] = useState(false);
     const [errorWhilePaste, setErrorWhilePaste] = useState("");
 
-    const { control, handleSubmit, register, setValue } = useForm({
+    const { control, handleSubmit, register, setValue } = useForm<FormValues>({
         defaultValues: {
-            provider: "" as string,
+            provider: "",
             items: [{ itemId: "", count: 1, addOns: [] }],
-        } as any,
+        },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, append, remove } = useFieldArray<FormValues, "items">({
         control,
         name: "items",
     });
 
     const [itemOptions, setItemOptions] = useState<ExtractedItem[]>([]);
 
-    const onSubmit = async (data: any) => {
-        await submitEvent({ jsonPath: {}, formData: data });
+    const onSubmit = async (data: FormValues) => {
+        await submitEvent({ jsonPath: {}, formData: data as unknown as Record<string, string> });
     };
 
-    const handlePaste = (payload: any) => {
+    const handlePaste = (payload: unknown) => {
         try {
-            if (!payload?.message?.catalog?.providers) return [];
+            const parsed = payload as OnSearchPayload;
+            if (!parsed?.message?.catalog?.providers) return [];
 
-            const providers = payload.message.catalog.providers;
+            const providers = parsed.message.catalog.providers;
 
             const results: ExtractedItem[] = [];
 
-            providers.forEach((provider: any) => {
+            providers.forEach((provider: CatalogProvider) => {
                 const providerId = provider.id;
-                const fulfillmentId = provider.fulfillments[0].id;
+                const fulfillmentId = provider.fulfillments[0]?.id;
                 if (!fulfillmentId) return;
 
                 if (!provider.items) return;
 
-                setValue("fulfillment", provider.fulfillments[0].id);
+                setValue("fulfillment" as unknown as FieldPath<FormValues>, fulfillmentId);
 
-                provider.items.forEach((item: any) => {
+                provider.items.forEach((item: CatalogItem) => {
                     results.push({
                         itemid: item.id,
                         providerid: providerId,
@@ -93,7 +112,7 @@ export default function TRV11Select({
             return (
                 <input
                     type="text"
-                    {...register(name)}
+                    {...register(name as unknown as FieldPath<FormValues>)}
                     placeholder={placeholder}
                     className={inputStyle}
                 />
@@ -101,7 +120,7 @@ export default function TRV11Select({
         }
         return (
             <select
-                {...register(name)}
+                {...register(name as unknown as FieldPath<FormValues>)}
                 onChange={(e) => {
                     const selectedId = e.target.value;
                     const selectedOption = options.find((opt) => opt.itemid === selectedId);

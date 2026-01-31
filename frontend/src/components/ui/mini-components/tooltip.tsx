@@ -1,8 +1,9 @@
 import Tippy from "@tippyjs/react";
+import { ReactElement } from "react";
 
 import "tippy.js/animations/perspective-subtle.css";
 
-const CustomTooltip = ({ content, children }: { content: string; children: any }) => {
+const CustomTooltip = ({ content, children }: { content: string; children: ReactElement }) => {
     return (
         <Tippy
             content={

@@ -3,6 +3,13 @@ import { ExecutionResult, MockPlaygroundConfigType } from "@ondc/automation-mock
 
 import { WorkbenchFlowType } from "@hooks/useWorkbenchFlow";
 import { SavedConfigMetadata } from "@pages/protocol-playground/utils/config-storage";
+
+type TransactionHistoryEntry = MockPlaygroundConfigType["transaction_history"][number];
+type TransactionPayload = TransactionHistoryEntry extends { payload: infer P } ? P : unknown;
+type TransactionSavedInfo = TransactionHistoryEntry extends { saved_info?: infer S }
+    ? S
+    : Record<string, unknown>;
+
 export interface PlaygroundContextProps {
     config: MockPlaygroundConfigType | undefined;
     setCurrentConfig: (config: MockPlaygroundConfigType | undefined) => void;
@@ -15,7 +22,11 @@ export interface PlaygroundContextProps {
     setActiveApi: React.Dispatch<React.SetStateAction<string | undefined>>;
     activeTerminalData: ExecutionResult[];
     setActiveTerminalData: React.Dispatch<React.SetStateAction<ExecutionResult[]>>;
-    updateTransactionHistory: (actionId: string, newPayload: any, savedInfo?: any) => void;
+    updateTransactionHistory: (
+        actionId: string,
+        newPayload: TransactionPayload,
+        savedInfo?: TransactionSavedInfo
+    ) => void;
     updateHelperLib: (newCode: string) => void;
     resetTransactionHistory: (actionId?: string) => void;
 

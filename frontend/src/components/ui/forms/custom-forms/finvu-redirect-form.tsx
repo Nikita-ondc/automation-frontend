@@ -4,7 +4,7 @@ import { SubmitEventParams } from "../../../../types/flow-types";
 
 interface FinvuRedirectFormProps {
     submitEvent: (data: SubmitEventParams) => Promise<void>;
-    referenceData?: Record<string, any>;
+    referenceData?: Record<string, unknown>;
     sessionId: string;
     transactionId: string;
 }
@@ -101,8 +101,9 @@ export default function FinvuRedirectForm({
                     }
                 }, 1000);
             }
-        } catch (error: any) {
-            console.error("Error checking completion:", error.message);
+        } catch (error: unknown) {
+            const err = error as { message?: string };
+            console.error("Error checking completion:", err.message);
         }
     }, [sessionId, transactionId, submitEvent, cleanup, pollCount]);
 
@@ -241,11 +242,15 @@ export default function FinvuRedirectForm({
 
                 // Start polling (background process, NO refresh)
                 startPolling();
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error("Error starting Finvu verification:", error);
                 setStatus("error");
+                const err = error as {
+                    message?: string;
+                    response?: { data?: { message?: string } };
+                };
                 setErrorMessage(
-                    error.response?.data?.message || error.message || "Failed to start verification"
+                    err.response?.data?.message || err.message || "Failed to start verification"
                 );
 
                 // Close the popup if we failed to get the URL

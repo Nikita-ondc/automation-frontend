@@ -191,7 +191,9 @@ const GenericFormWithPaste = ({
         <div>
             {enablePaste && (
                 <>
-                    {isPayloadEditorActive && <PayloadEditor onAdd={handlePaste} />}
+                    {isPayloadEditorActive && (
+                        <PayloadEditor onAdd={handlePaste as (payload: unknown) => void} />
+                    )}
                     {errorWhilePaste && (
                         <p className="text-red-500 text-sm italic mb-2">{errorWhilePaste}</p>
                     )}

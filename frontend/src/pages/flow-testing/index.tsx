@@ -28,7 +28,7 @@ export default function FlowTestingWrapper() {
             } else {
                 toast.error("No flow configurations found in session");
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error fetching session data:", error);
             toast.error("Failed to load session data");
         } finally {

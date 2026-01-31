@@ -1,9 +1,41 @@
 import { useState } from "react";
-import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { useForm, useFieldArray, Controller, FieldPath } from "react-hook-form";
 import { FaRegPaste } from "react-icons/fa6";
 import PayloadEditor from "../../mini-components/payload-editor";
 import { SubmitEventParams } from "../../../../types/flow-types";
 import { toast } from "react-toastify";
+
+type OfferKey = `offers_${string}`;
+
+type CatalogItem = { id: string };
+type CatalogLocation = { id: string };
+type CatalogOffer = { id: string };
+type CatalogProvider = {
+    id: string;
+    items: CatalogItem[];
+    locations: CatalogLocation[];
+    offers?: CatalogOffer[];
+};
+
+type OnSearchPayload = {
+    message: {
+        catalog: {
+            "bpp/providers": CatalogProvider[];
+        };
+    };
+};
+
+type FormValues = {
+    provider: string;
+    provider_location: string[];
+    location_gps: string;
+    location_pin_code: string;
+    items: {
+        itemId: string;
+        quantity: number;
+        location: string;
+    }[];
+} & Partial<Record<OfferKey, boolean>>;
 
 export default function Ret10GrocerySelect({
     submitEvent,
@@ -14,9 +46,9 @@ export default function Ret10GrocerySelect({
     const [errorWhilePaste, setErrorWhilePaste] = useState("");
     const [isDataPasted, setIsDataPasted] = useState(false);
 
-    const { control, handleSubmit, watch, register } = useForm({
+    const { control, handleSubmit, watch, register } = useForm<FormValues>({
         defaultValues: {
-            provider: "" as string,
+            provider: "",
             provider_location: [],
             location_gps: "",
             location_pin_code: "",
@@ -24,10 +56,10 @@ export default function Ret10GrocerySelect({
                 { itemId: "", quantity: 1, location: "" },
                 { itemId: "", quantity: 1, location: "" },
             ],
-        } as any,
+        },
     });
 
-    const { fields, append, remove } = useFieldArray({
+    const { fields, append, remove } = useFieldArray<FormValues, "items">({
         control,
         name: "items",
     });
@@ -36,36 +68,34 @@ export default function Ret10GrocerySelect({
     const [itemOptions, setItemOptions] = useState<string[]>([]);
     const [locationOptions, setLocationOptions] = useState<string[]>([]);
     const [offerOptions, setOfferOptions] = useState<string[]>([]);
-    const [providers, setProviders] = useState<any[]>([]);
+    const [providers, setProviders] = useState<CatalogProvider[]>([]);
 
     const selectedProvider = watch("provider");
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: FormValues) => {
         const { valid, errors } = validateFormData(data);
         if (!valid) {
             toast.error(`Form validation failed: ${errors[0]}`);
             return;
         }
-        await submitEvent({ jsonPath: {}, formData: data });
+        await submitEvent({ jsonPath: {}, formData: data as unknown as Record<string, string> });
     };
 
-    const handlePaste = (data: any) => {
+    const handlePaste = (data: unknown) => {
         try {
-            const providers = data.message.catalog["bpp/providers"];
+            const providers = (data as OnSearchPayload).message.catalog["bpp/providers"];
             setProviders(providers);
 
-            const providerIDs = providers.map((p: any) => p.id);
+            const providerIDs = providers.map((p) => p.id);
             setProviderOptions(providerIDs);
 
             const provider = providers[0];
             if (provider) {
-                setItemOptions(provider.items.map((i: any) => i.id));
-                setLocationOptions(provider.locations.map((l: any) => l.id));
+                setItemOptions(provider.items.map((i) => i.id));
+                setLocationOptions(provider.locations.map((l) => l.id));
             }
 
-            const offers = providers
-                .flatMap((p: any) => p.offers || [])
-                .map((offer: any) => offer.id);
+            const offers = providers.flatMap((p) => p.offers || []).map((offer) => offer.id);
             setOfferOptions(offers);
             setIsDataPasted(true);
         } catch (err) {
@@ -86,14 +116,14 @@ export default function Ret10GrocerySelect({
             return (
                 <input
                     type="text"
-                    {...register(name)}
+                    {...register(name as unknown as FieldPath<FormValues>)}
                     placeholder={placeholder}
                     className={inputStyle}
                 />
             );
         }
         return (
-            <select {...register(name)} className={inputStyle}>
+            <select {...register(name as unknown as FieldPath<FormValues>)} className={inputStyle}>
                 <option value="">Select...</option>
                 {options.map((option) => (
                     <option key={option} value={option}>
@@ -170,7 +200,7 @@ export default function Ret10GrocerySelect({
 
                             return (
                                 <div className="flex flex-col gap-2">
-                                    {locations.map((loc: any) => (
+                                    {locations.map((loc: CatalogLocation) => (
                                         <label
                                             key={loc.id}
                                             className="inline-flex gap-2 items-center"
@@ -208,7 +238,7 @@ export default function Ret10GrocerySelect({
                                     <input
                                         type="checkbox"
                                         value={offerId}
-                                        {...register(`offers_${offerId}`)}
+                                        {...register(`offers_${offerId}` as OfferKey)}
                                         className="accent-blue-600"
                                     />
                                     {offerId}
@@ -283,8 +313,7 @@ type FormData = {
         quantity: number;
         location: string;
     }[];
-    [key: string]: any; // to allow dynamic offer keys like offers_FLAT50
-};
+} & Partial<Record<OfferKey, boolean>>;
 
 function validateFormData(data: FormData): {
     valid: boolean;
@@ -293,7 +322,7 @@ function validateFormData(data: FormData): {
     const errors: string[] = [];
 
     // Validate top-level fields (excluding items and offer checkboxes)
-    const fieldsToValidate = ["provider", "location_gps", "location_pin_code"];
+    const fieldsToValidate = ["provider", "location_gps", "location_pin_code"] as const;
     for (const key of fieldsToValidate) {
         if (data[key] === undefined || data[key] === null || data[key] === "") {
             errors.push(`Field ${key} cannot be empty.`);
@@ -333,7 +362,7 @@ function validateFormData(data: FormData): {
     }
 
     // Rule 4: Only one offer can be selected (non-falsy)
-    const offerKeys = Object.keys(data).filter((key) => key.startsWith("offers_"));
+    const offerKeys = Object.keys(data).filter((key): key is OfferKey => key.startsWith("offers_"));
     const selectedOffers = offerKeys.filter((key) => Boolean(data[key]));
     if (selectedOffers.length > 1) {
         errors.push("Only one offer can be selected.");

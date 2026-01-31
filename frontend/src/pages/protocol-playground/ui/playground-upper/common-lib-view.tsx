@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { PlaygroundContext } from "../../context/playground-context";
-import { Editor } from "@monaco-editor/react";
+import { Editor, Monaco } from "@monaco-editor/react";
 import { DarkSkyBlueTheme } from "../editor-themes";
 import { MockRunner } from "@ondc/automation-mock-runner/dist/lib/MockRunner";
 
@@ -23,7 +23,7 @@ export default function CommonLibView() {
             playgroundContext.updateHelperLib(value);
         }
     };
-    const handleEditorWillMount = (monaco: any) => {
+    const handleEditorWillMount = (monaco: Monaco) => {
         monaco.editor.defineTheme("dark-skyblue", DarkSkyBlueTheme);
     };
 

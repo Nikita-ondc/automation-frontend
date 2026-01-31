@@ -147,7 +147,9 @@ export default function HotelSelect({ submitEvent }: IHotelSelectProps) {
 
     return (
         <div>
-            {isPayloadEditorActive && <PayloadEditor onAdd={handlePaste} />}
+            {isPayloadEditorActive && (
+                <PayloadEditor onAdd={handlePaste as (payload: unknown) => void} />
+            )}
             {errorWhilePaste && (
                 <p className="text-red-500 text-sm italic mt-1">{errorWhilePaste}</p>
             )}

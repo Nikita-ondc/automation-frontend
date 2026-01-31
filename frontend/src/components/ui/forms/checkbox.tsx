@@ -5,12 +5,18 @@ export interface CheckboxOption {
     code: string;
 }
 
+type RegisterReturn = React.InputHTMLAttributes<HTMLInputElement> & {
+    ref?: React.Ref<HTMLInputElement>;
+};
+
+type RegisterFn = (name: string, rules?: Record<string, unknown>) => RegisterReturn;
+
 interface CheckboxGroupProps {
     options: CheckboxOption[];
     label: string;
     labelInfo?: string;
     name: string; // form field name
-    register?: any;
+    register?: RegisterFn;
     required?: boolean;
     disabled?: boolean;
     onChange?: (selectedCodes: string[]) => void;
@@ -18,7 +24,7 @@ interface CheckboxGroupProps {
 }
 
 const CheckboxGroup = ({
-    register = (_: any) => {},
+    register = (_: string) => ({}) as RegisterReturn,
     options,
     name,
     label,

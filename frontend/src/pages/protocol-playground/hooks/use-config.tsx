@@ -7,6 +7,15 @@ import MockRunner from "@ondc/automation-mock-runner";
 import { createFlowSessionWithPlayground } from "../utils/request-utils";
 import { GetRequestEndpoint } from "@components/FlowShared/guides";
 
+type JsonSchema = Record<string, unknown>;
+type FormValues = Record<string, unknown>;
+
+type FileInputChangeEvent = Event & {
+    target: HTMLInputElement & { files: FileList };
+};
+
+type RunResult = { success: boolean };
+
 // hooks/useConfigOperations.ts
 export const useConfigOperations = () => {
     const playgroundContext = useContext(PlaygroundContext);
@@ -34,17 +43,26 @@ export const useConfigOperations = () => {
         const input = document.createElement("input");
         input.type = "file";
         input.accept = ".json";
-        input.onchange = (event: any) => {
-            const file = event.target.files[0];
+        input.onchange = (event: Event) => {
+            const file = (event as FileInputChangeEvent).target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     try {
-                        const config = JSON.parse(e.target?.result as string);
+                        const config = JSON.parse(
+                            (e.target as FileReader | null)?.result as string
+                        );
+                        const validConfig = new MockRunner(config).validateConfig();
+                        if (!validConfig.success) {
+                            toast.error(`Invalid configuration: ${validConfig.errors?.join(", ")}`);
+                            return;
+                        }
                         playgroundContext.setCurrentConfig(config);
                         toast.success("Configuration imported successfully");
                     } catch (error) {
-                        toast.error("Invalid JSON file");
+                        console.error("Error reading file:", error);
+                        const message = error instanceof Error ? error.message : "Unknown error";
+                        toast.error(`Invalid JSON file or configuration: ${message}`);
                     }
                 };
                 reader.readAsText(file);
@@ -59,7 +77,7 @@ export const useConfigOperations = () => {
         toast.success("All configurations deleted");
     };
 
-    const showFormModal = (schema: any, onSubmit: (formData: any) => void) => {
+    const showFormModal = (schema: JsonSchema, onSubmit: (formData: FormValues) => void) => {
         modal.openModal(
             <div className="p-1">
                 <h2 className="text-l font-semibold mb-1">Enter Input Data</h2>
@@ -74,7 +92,7 @@ export const useConfigOperations = () => {
     };
 
     // return true if payload execution was successful
-    const executePayload = async (data: { actionId: string; inputs: any }) => {
+    const executePayload = async (data: { actionId: string; inputs: FormValues }) => {
         playgroundContext.setLoading(true);
         try {
             const config = playgroundContext.config;
@@ -111,19 +129,19 @@ export const useConfigOperations = () => {
     const runConfig = async () => {
         if (!playgroundContext.config?.steps || playgroundContext.config.steps.length === 0) {
             toast.error("No steps to run");
-            return { success: false };
+            return { success: false } as RunResult;
         }
         if (
             playgroundContext.config.steps.length ===
             playgroundContext.config.transaction_history.length
         ) {
             toast.info("All steps have already been executed");
-            return { success: false };
+            return { success: false } as RunResult;
         }
         const currentIndex = calcCurrentIndex(playgroundContext.config);
         if (currentIndex === -1) {
             toast.info("All steps have been executed");
-            return { success: false };
+            return { success: false } as RunResult;
         }
         const currentStep = playgroundContext.config.steps[currentIndex];
         try {
@@ -137,12 +155,12 @@ export const useConfigOperations = () => {
                 });
                 return {
                     success: res,
-                };
+                } as RunResult;
             }
 
             // Inputs needed - return a Promise that resolves when form is submitted
-            return new Promise((resolve) => {
-                const handleFormSubmit = async (formData: any) => {
+            return new Promise<RunResult>((resolve) => {
+                const handleFormSubmit = async (formData: FormValues) => {
                     modal.closeModal();
                     const res = await executePayload({
                         actionId: currentStep.action_id,
@@ -153,7 +171,7 @@ export const useConfigOperations = () => {
 
                 if (!currentStep.mock.inputs.jsonSchema) {
                     toast.error("No input schema defined for this action");
-                    resolve({ success: false });
+                    resolve({ success: false } as RunResult);
                     return;
                 }
 
@@ -164,7 +182,7 @@ export const useConfigOperations = () => {
             toast.error("Error generating payload. Check console for details.");
             return {
                 success: false,
-            };
+            } as RunResult;
         }
     };
 
@@ -203,8 +221,9 @@ export const useConfigOperations = () => {
     };
 
     const createFlowSession = () => {
-        async function handleFormSubmit(formData: any) {
-            if (formData.subscriber_url === "testing") {
+        async function handleFormSubmit(formData: FormValues) {
+            const data = formData as { subscriber_url?: string; role?: "BAP" | "BPP" };
+            if (data.subscriber_url === "testing") {
                 const subUrlBap = GetRequestEndpoint(
                     playgroundContext.config?.meta.domain || "",
                     playgroundContext.config?.meta.version || "",
@@ -221,12 +240,12 @@ export const useConfigOperations = () => {
             }
             // subcriber url is a valid url
             const regex = /^(http|https):\/\/[^ "]+$/;
-            if (!regex.test(formData.subscriber_url)) {
+            if (!data.subscriber_url || !regex.test(data.subscriber_url)) {
                 toast.error("Please enter a valid URL");
                 return;
             }
 
-            await createAndOpenFlowSession(formData.subscriber_url, formData.role);
+            await createAndOpenFlowSession(data.subscriber_url, data.role as "BAP" | "BPP");
         }
 
         modal.openModal(
@@ -271,7 +290,7 @@ export const useConfigOperations = () => {
         try {
             playgroundContext.resetTransactionHistory();
             for (const step of playgroundContext.config.steps) {
-                const res = (await runConfig()) as any;
+                const res = await runConfig();
                 if (!res?.success) {
                     toast.error(`Execution stopped at action ${step.action_id}`);
                     break;

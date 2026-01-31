@@ -101,13 +101,23 @@ const ProtocolPlayGround = () => {
         setCurrentConfig(newConfig);
     };
 
-    const updateTransactionHistory = (actionId: string, newPayload: any, savedInfo?: any) => {
+    type TransactionHistoryEntry = MockPlaygroundConfigType["transaction_history"][number];
+    type TransactionPayload = TransactionHistoryEntry extends { payload: infer P } ? P : unknown;
+    type TransactionSavedInfo = TransactionHistoryEntry extends { saved_info?: infer S }
+        ? S
+        : Record<string, unknown>;
+
+    const updateTransactionHistory = (
+        actionId: string,
+        newPayload: TransactionPayload,
+        savedInfo?: TransactionSavedInfo
+    ) => {
         const current = playgroundState;
         if (!current) return;
         const historyEntry = {
             action_id: actionId,
             payload: newPayload,
-            saved_info: savedInfo || {},
+            saved_info: savedInfo || ({} as TransactionSavedInfo),
         };
         current.transaction_history.push(historyEntry);
         setCurrentConfig({ ...current });

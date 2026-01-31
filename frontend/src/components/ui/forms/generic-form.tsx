@@ -1,20 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { DefaultValues, FieldValues, useForm } from "react-hook-form";
 import LoadingButton from "./loading-button";
 
-const GenericForm = ({
+type GenericFormProps<T extends FieldValues> = {
+    defaultValues?: DefaultValues<T>;
+    children: React.ReactNode;
+    onSubmit: (data: T) => Promise<void>;
+    className?: string;
+    triggerSubmit?: boolean;
+};
+
+const GenericForm = <T extends FieldValues = FieldValues>({
     defaultValues,
     children,
     onSubmit,
     className,
     triggerSubmit = false,
-}: {
-    defaultValues?: any;
-    children: React.ReactNode;
-    onSubmit: (data: any) => Promise<void>;
-    className?: string;
-    triggerSubmit?: boolean;
-}) => {
+}: GenericFormProps<T>) => {
     const {
         register,
         handleSubmit,
@@ -25,7 +27,7 @@ const GenericForm = ({
 
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleSubmitForm = async (data: any) => {
+    const handleSubmitForm = async (data: T) => {
         setIsLoading(true);
 
         try {

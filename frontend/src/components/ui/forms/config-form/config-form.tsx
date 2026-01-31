@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { FormInput } from "../form-input";
 import FormSelect from "../form-select";
-import CheckboxGroup from "../checkbox";
+import CheckboxGroup, { CheckboxOption } from "../checkbox";
 import ItemCustomisationSelector from "../nested-select";
 import GenericForm from "../generic-form";
 import GenericFormWithPaste from "../generic-form-with-paste";
@@ -28,48 +28,57 @@ import RideHailingSelect from "../custom-forms/trv10-201-select";
 import SearchAccidentalFis13 from "../custom-forms/search-accidental-fis13";
 import SearchHospicashFis13 from "../custom-forms/search-hospicash-fis13";
 import SearchTransitFis13 from "../custom-forms/search-transit-fis13";
+import SearchDiscoverProductFis13 from "../custom-forms/search-discover-product-fis13";
+import Metro210Select from "../custom-forms/metro-seat-select";
+import Metro210EndStopUpdate from "../custom-forms/update-end-stop-update";
+import Metro210StartEndStopSelection from "../custom-forms/trv11_start_end_stop_selection";
+import { RJSFSchema } from "@rjsf/utils";
 
 export interface FormFieldConfigType {
     name: string;
     label: string;
     type:
-    | "text"
-    | "select"
-    | "textarea"
-    | "list"
-    | "date"
-    | "checkbox"
-    | "boolean"
-    | "trv12_bus_seat_selection"
-    | "airline_select"
-    | "intercity_select"
-    | "airline_seat_select"
-    | "ret10_grocery_select"
-    | "nestedSelect"
-    | "trv_select"
-    | "trv10_select"
-    | "trv10_schedule"
-    | "trv10_schedule_rental"
-    | "trv11_select"
-    | "hotel_select"
-    | "HTML_FORM"
-    | "FINVU_REDIRECT"
-    | "DYNAMIC_FORM"
-    | "fis13_select"
-    | "trv13_select_provider"
-    | "trv10_201_select"
-    | "search_accidental_fis13"
-    | "search_hospicash_fis13"
-    | "search_transit_fis13";
+        | "text"
+        | "select"
+        | "textarea"
+        | "list"
+        | "date"
+        | "checkbox"
+        | "boolean"
+        | "trv12_bus_seat_selection"
+        | "airline_select"
+        | "intercity_select"
+        | "airline_seat_select"
+        | "ret10_grocery_select"
+        | "nestedSelect"
+        | "trv_select"
+        | "trv10_select"
+        | "trv10_schedule"
+        | "trv10_schedule_rental"
+        | "trv11_select"
+        | "hotel_select"
+        | "HTML_FORM"
+        | "FINVU_REDIRECT"
+        | "DYNAMIC_FORM"
+        | "fis13_select"
+        | "trv13_select_provider"
+        | "trv10_201_select"
+        | "search_accidental_fis13"
+        | "search_hospicash_fis13"
+        | "search_transit_fis13"
+        | "search_discover_product_fis13"
+        | "trv11_210_select"
+        | "trv11_210_update_end_station"
+        | "trv11_210_start_end_stop_selection";
     payloadField: string;
     values?: string[];
     defaultValue?: string;
     input?: FormFieldConfigType[];
-    options?: any;
-    default?: any;
+    options?: CheckboxOption[];
+    default?: string | string[] | number | boolean | null;
     display?: boolean;
     reference?: string;
-    schema?: any;
+    schema?: RJSFSchema;
     required?: boolean;
 }
 
@@ -83,7 +92,7 @@ export default function FormConfig({
 }: {
     formConfig: FormConfigType;
     submitEvent: (data: SubmitEventParams) => Promise<void>;
-    referenceData?: Record<string, any>;
+    referenceData?: Record<string, unknown>;
     flowId?: string;
 }) {
     const sessionContext = useContext(SessionContext);
@@ -117,7 +126,7 @@ export default function FormConfig({
         await submitEvent({ jsonPath: formatedData, formData: formData });
     };
 
-    const defaultValues: any = {};
+    const defaultValues: Record<string, unknown> = {};
     let isNoFieldVisible = false;
 
     formConfig.forEach((field) => {
@@ -131,15 +140,6 @@ export default function FormConfig({
             isNoFieldVisible = true;
         }
     });
-
-    // Check for schema form
-    if (formConfig.find((f) => f.schema)) {
-        const schemaField = formConfig.find((f) => f.schema);
-        return JsonSchemaForm({
-            schema: schemaField!.schema,
-            onSubmit: onSubmit as (data: Record<string, unknown>) => Promise<void>,
-        });
-    }
 
     // Check for DYNAMIC_FORM type
     if (formConfig.find((field) => field.type === "DYNAMIC_FORM")) {
@@ -259,6 +259,32 @@ export default function FormConfig({
         return <SearchTransitFis13 submitEvent={submitEvent} />;
     }
 
+    if (formConfig.find((field) => field.type === "search_discover_product_fis13")) {
+        return <SearchDiscoverProductFis13 submitEvent={submitEvent} />;
+    }
+
+    if (formConfig.find((field) => field.type === "trv11_210_select")) {
+        return <Metro210Select submitEvent={submitEvent} />;
+    }
+
+    if (formConfig.find((field) => field.type === "trv11_210_update_end_station")) {
+        return <Metro210EndStopUpdate submitEvent={submitEvent} />;
+    }
+
+    if (formConfig.find((field) => field.type === "trv11_210_start_end_stop_selection")) {
+        return <Metro210StartEndStopSelection submitEvent={submitEvent} />;
+    }
+
+    // NOTE: The JsonSchemaForm check must come after all other specific form type checks above.
+    // Check for schema form
+    if (formConfig.find((f) => f.schema)) {
+        const schemaField = formConfig.find((f) => f.schema);
+        return JsonSchemaForm({
+            schema: schemaField!.schema as RJSFSchema,
+            onSubmit: onSubmit as (data: Record<string, unknown>) => Promise<void>,
+        });
+    }
+
     // Check if form has fields that can be populated from on_search (like item_id for TRV13)
     const enablePaste = formConfig.some((field) => field.name === "item_id");
     const FormComponent = enablePaste ? GenericFormWithPaste : GenericForm;
@@ -284,7 +310,7 @@ export default function FormConfig({
                                 name={field.name}
                                 label={field.label}
                                 required={field.required !== false}
-                            // key={field.payloadField}
+                                // key={field.payloadField}
                             />
                         );
                     case "date":
@@ -294,7 +320,7 @@ export default function FormConfig({
                                 label={field.label}
                                 required={field.required !== false}
                                 type="date"
-                            // key={field.payloadField}
+                                // key={field.payloadField}
                             />
                         );
                     case "select":
@@ -303,16 +329,16 @@ export default function FormConfig({
                                 name={field.name}
                                 label={field.label}
                                 options={field.values || []}
-                            // key={field.payloadField}
+                                // key={field.payloadField}
                             />
                         );
                     case "checkbox":
                         return (
                             <CheckboxGroup
-                                options={field.options}
+                                options={field.options || []}
                                 label={field.label}
                                 name={field.name}
-                                defaultValue={field.default}
+                                defaultValue={field.default as string[] | undefined}
                             />
                         );
                     case "nestedSelect":

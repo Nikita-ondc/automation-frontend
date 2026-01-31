@@ -7,12 +7,21 @@ interface IOption {
     value: string;
 }
 
+type RegisterReturn = Record<string, unknown> & {
+    onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+    ref?: React.Ref<HTMLSelectElement>;
+};
+
+type RegisterFn = (name: string, rules?: Record<string, unknown>) => RegisterReturn;
+
+type FormErrors = Record<string, { message?: string } | undefined>;
+
 interface FormSelectProps {
-    register?: (name: string, rules?: any) => any;
+    register?: RegisterFn;
     name: string;
     label: string;
     options: (string | IOption)[];
-    errors?: any;
+    errors?: FormErrors;
     setSelectedValue?: (value: string) => void;
     defaultValue?: string;
     labelInfo?: string;
@@ -20,11 +29,11 @@ interface FormSelectProps {
     disabled?: boolean;
     required?: boolean | string;
     currentValue?: string;
-    setValue?: (name: string, value: any, options?: any) => void;
+    setValue?: (name: string, value: unknown, options?: Record<string, unknown>) => void;
 }
 
 const FormSelect = ({
-    register = (_: any) => {},
+    register = (_: string) => ({}) as RegisterReturn,
     name,
     label,
     options,

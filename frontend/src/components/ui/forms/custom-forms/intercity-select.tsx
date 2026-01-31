@@ -15,6 +15,24 @@ interface CatalogItem {
     };
 }
 
+interface CatalogFulfillment {
+    id: string;
+}
+
+interface CatalogProvider {
+    id: string;
+    fulfillments?: CatalogFulfillment[];
+    items?: CatalogItem[];
+}
+
+interface OnSearchPayload {
+    message?: {
+        catalog?: {
+            providers?: CatalogProvider[];
+        };
+    };
+}
+
 interface FormData {
     provider: string;
     fulfillment: string;
@@ -41,13 +59,14 @@ export default function IntercitySelect({
     });
 
     /* ------------------- HANDLE PASTE ------------------- */
-    const handlePaste = (payload: any) => {
+    const handlePaste = (payload: unknown) => {
         try {
-            if (!payload?.message?.catalog?.providers?.length) {
+            const parsedPayload = payload as OnSearchPayload;
+            if (!parsedPayload?.message?.catalog?.providers?.length) {
                 throw new Error("Invalid Schema");
             }
 
-            const provider = payload.message.catalog.providers[0];
+            const provider = parsedPayload.message.catalog.providers[0];
 
             setValue("provider", provider.id);
             setValue("fulfillment", provider.fulfillments?.[0]?.id || "");

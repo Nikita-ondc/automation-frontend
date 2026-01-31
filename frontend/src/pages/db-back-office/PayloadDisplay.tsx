@@ -23,7 +23,7 @@ const PayloadDisplay: FC<PayloadDisplayProps> = ({ payloadData }) => (
 
         <div className="border border-sky-200 rounded-lg overflow-hidden">
             <JsonView
-                value={payloadData.data}
+                value={payloadData.data as object}
                 style={{
                     backgroundColor: "#f8fafc",
                     padding: "16px",

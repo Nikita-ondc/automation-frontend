@@ -4,6 +4,13 @@ import PayloadEditor from "../../mini-components/payload-editor";
 import { SubmitEventParams } from "../../../../types/flow-types";
 import { toast } from "react-toastify";
 
+type FormValues = {
+    city_code: string;
+    start_gps: string;
+    end_gps: string;
+    scheduled_time: string;
+};
+
 export default function TRV10ScheduleForm({
     submitEvent,
 }: {
@@ -20,12 +27,12 @@ export default function TRV10ScheduleForm({
         },
     });
 
-    const handlePaste = (_payload: any) => {
+    const handlePaste = (_payload: unknown) => {
         setIsPayloadEditorActive(false);
         toast.success("Payload pasted successfully");
     };
 
-    const onSubmit = async (data: any) => {
+    const onSubmit = async (data: FormValues) => {
         try {
             const formattedData = {
                 ...data,
@@ -41,7 +48,7 @@ export default function TRV10ScheduleForm({
                     scheduled_time:
                         "$.message.intent.fulfillment.stops[?(@.type=='START')].time.timestamp",
                 },
-                formData: formattedData,
+                formData: formattedData as unknown as Record<string, string>,
             });
         } catch (err) {
             console.error(err);

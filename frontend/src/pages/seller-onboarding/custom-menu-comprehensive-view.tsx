@@ -536,6 +536,7 @@ const CustomMenuComprehensiveView: React.FC<CustomMenuComprehensiveViewProps> = 
                                                                                                         {
                                                                                                             opt.price
                                                                                                         }
+
                                                                                                         )
                                                                                                     </span>
                                                                                                 )}

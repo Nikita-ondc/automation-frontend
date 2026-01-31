@@ -101,9 +101,10 @@ export default function HotelSelectProvider({ submitEvent }: IHotelSelectProps) 
                 // Parse yyyy-mm-dd and convert to ISO timestamp
                 const date = new Date(dateString);
                 return date.toISOString();
-            } catch (error) {
-                console.error("Invalid date format:", dateString);
-                return dateString; // Return original if conversion fails
+            } catch (error: unknown) {
+                const err = error as Error;
+                console.error("Invalid date format:", err.message, dateString);
+                return dateString;
             }
         };
 
@@ -127,7 +128,9 @@ export default function HotelSelectProvider({ submitEvent }: IHotelSelectProps) 
 
     return (
         <div>
-            {isPayloadEditorActive && <PayloadEditor onAdd={handlePaste} />}
+            {isPayloadEditorActive && (
+                <PayloadEditor onAdd={handlePaste as (payload: unknown) => void} />
+            )}
             {errorWhilePaste && (
                 <p className="text-red-500 text-sm italic mt-1">{errorWhilePaste}</p>
             )}

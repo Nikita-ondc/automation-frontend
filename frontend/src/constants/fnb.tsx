@@ -1,5 +1,18 @@
 // F&B (Food & Beverage) domain attributes configuration
-export const fnbAttributes = {
+type FnBAttributeFieldConfig = {
+    mandatory: boolean;
+    value: string[];
+    placeholder?: string;
+};
+
+type FnBAttributesGroup = Record<string, FnBAttributeFieldConfig>;
+
+type FnBAttributesConfig = {
+    mandatory: FnBAttributesGroup;
+    optional: FnBAttributesGroup;
+};
+
+export const fnbAttributes: FnBAttributesConfig = {
     // Mandatory attributes for all F&B items
     mandatory: {
         veg_non_veg: {
@@ -98,7 +111,7 @@ export const fnbAttributes = {
 };
 
 // F&B subcategory specific attributes
-export const fnbSubcategoryAttributes: { [key: string]: any } = {
+export const fnbSubcategoryAttributes: Record<string, FnBAttributesConfig> = {
     Beverages: {
         mandatory: {},
         optional: {
@@ -159,7 +172,7 @@ export const fnbSubcategoryAttributes: { [key: string]: any } = {
 };
 
 // Helper function to get attributes for a specific F&B subcategory
-export const getFnBAttributes = (subcategory: string) => {
+export const getFnBAttributes = (subcategory: string): FnBAttributesConfig => {
     const baseAttributes = {
         mandatory: fnbAttributes.mandatory,
         optional: fnbAttributes.optional,
