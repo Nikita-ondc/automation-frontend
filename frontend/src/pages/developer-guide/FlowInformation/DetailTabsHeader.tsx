@@ -8,6 +8,8 @@ interface DetailTabsHeaderProps {
     hasExampleObject: boolean;
     hasStep: boolean;
     hasXValidations: boolean;
+    hasXinput: boolean;
+    hasSequence: boolean;
 }
 
 const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
@@ -16,17 +18,19 @@ const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
     hasExampleObject,
     hasStep,
     hasXValidations,
+    hasXinput,
+    hasSequence,
 }) => (
     <GuideTabs<FlowInformationSection>
         active={activeSection}
         onChange={onChange}
         tabs={
             [
-                // {
-                //     id: "sequence",
-                //     label: "Sequence Diagram",
-                //     visible: true,
-                // },// commenting Sequence Diagram as there is not diagrams available
+                {
+                    id: "sequence",
+                    label: "Sequence Diagram",
+                    visible: hasSequence,
+                },
                 {
                     id: "preview",
                     label: "Example Payload",
@@ -42,6 +46,11 @@ const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
                     id: "x-validations",
                     label: "Validations",
                     visible: hasXValidations,
+                },
+                {
+                    id: "xinput",
+                    label: "Form (x-input)",
+                    visible: hasXinput,
                 },
             ] satisfies GuideTabItem<FlowInformationSection>[]
         }

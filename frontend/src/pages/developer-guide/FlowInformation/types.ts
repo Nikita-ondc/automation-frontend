@@ -5,7 +5,8 @@ export type FlowInformationSection =
     | "preview"
     | "x-validations"
     | "request"
-    | "response";
+    | "response"
+    | "xinput";
 
 export interface FlowInformationProps {
     data: OpenAPISpecification;

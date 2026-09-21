@@ -3,6 +3,8 @@ import type { FlowEntry, ValidationTableAction } from "@pages/developer-guide/ty
 import { getActionId } from "@/pages/developer-guide/utils";
 import { getExamplesFromStep } from "@/pages/developer-guide/FlowInformation/utils";
 import { resolveSequenceMermaid } from "@/pages/developer-guide/FlowInformation/utils";
+import { getXinputInfo, hasXinputData } from "@/pages/developer-guide/FlowInformation/xinputInfo";
+import { generateStepSequenceMermaid } from "@/pages/developer-guide/FlowInformation/sequenceMermaid";
 
 /**
  * Resolves the currently-selected flow/step and the values derived from it
@@ -13,7 +15,8 @@ export function useSelectedFlowStep(
     selectedFlow: string,
     selectedFlowAction: string,
     selectedExampleIndex: number,
-    validationTable: Record<string, ValidationTableAction> | null
+    validationTable: Record<string, ValidationTableAction> | null,
+    domain?: string
 ) {
     const selectedFlowData = flows.find((f) => f.flowId === selectedFlow);
     const steps = selectedFlowData?.config?.steps ?? [];
@@ -27,14 +30,24 @@ export function useSelectedFlowStep(
         typeof examplePayload === "object" &&
         !Array.isArray(examplePayload);
 
+    // Authored diagrams from the spec win; otherwise synthesize one from the step structure.
     const sequenceMermaid = useMemo(
-        () => resolveSequenceMermaid(selectedFlowData, selectedStep),
-        [selectedFlowData, selectedStep]
+        () =>
+            resolveSequenceMermaid(selectedFlowData, selectedStep) ??
+            generateStepSequenceMermaid(steps, selectedStep, domain),
+        [selectedFlowData, selectedStep, steps, domain]
     );
 
     const apiForValidations = selectedStep?.api ?? selectedFlowAction;
     const selectedValidations = validationTable ? validationTable[apiForValidations] : undefined;
     const hasXValidations = !!selectedValidations;
+
+    const xinputInfo = useMemo(
+        () => getXinputInfo(selectedStep, examplePayload),
+        [selectedStep, examplePayload]
+    );
+    const hasXinput = hasXinputData(xinputInfo);
+
     const hasTabs = hasExampleObject || hasXValidations || !!selectedStep;
 
     return {
@@ -48,6 +61,8 @@ export function useSelectedFlowStep(
         sequenceMermaid,
         selectedValidations,
         hasXValidations,
+        xinputInfo,
+        hasXinput,
         hasTabs,
     };
 }

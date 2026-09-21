@@ -8,6 +8,7 @@ import ValidationsTable from "../ValidationsTable";
 import { RequestTab, ResponseTab } from "../RequestResponseTabs";
 import DetailTabsHeader from "./DetailTabsHeader";
 import ExampleSelector from "./ExampleSelector";
+import XinputFormPanel from "./XinputFormPanel";
 import SequenceDiagramPanel from "./SequenceDiagramPanel";
 import { useFlowDetailSection } from "./useFlowDetailSection";
 import { useValidationTable } from "./useValidationTable";
@@ -51,13 +52,16 @@ const FlowInformation: FC<FlowInformationProps> = ({
         sequenceMermaid,
         selectedValidations,
         hasXValidations,
+        xinputInfo,
+        hasXinput,
         hasTabs,
     } = useSelectedFlowStep(
         flows,
         selectedFlow,
         selectedFlowAction,
         selectedExampleIndex,
-        validationTable
+        validationTable,
+        domain
     );
 
     const resetExampleIndex = useCallback(() => setSelectedExampleIndex(0), []);
@@ -86,11 +90,6 @@ const FlowInformation: FC<FlowInformationProps> = ({
         return () => document.removeEventListener("keydown", onKeyDown);
     }, [isFullscreen]);
 
-    // Leave fullscreen when the selected action changes so the overlay doesn't outlive its content.
-    useEffect(() => {
-        setIsFullscreen(false);
-    }, [selectedFlowAction]);
-
     const detailTabOrder = useMemo(() => {
         const order: FlowInformationSection[] = ["preview"]; // setting default preview as there is no sequence diagram
         if (hasExampleObject) order.push("preview");
@@ -98,8 +97,9 @@ const FlowInformation: FC<FlowInformationProps> = ({
             order.push("request", "response");
         }
         if (hasXValidations) order.push("x-validations");
+        if (hasXinput) order.push("xinput");
         return order;
-    }, [hasExampleObject, selectedStep, hasXValidations]);
+    }, [hasExampleObject, selectedStep, hasXValidations, hasXinput]);
 
     if (isEmpty) {
         return (
@@ -131,12 +131,43 @@ const FlowInformation: FC<FlowInformationProps> = ({
 
     const hasSelectedAction = !!(selectedFlowAction && selectedStep);
 
+    // Left pane: flows accordion/sidebar + collapse toggle. Shared between the inline layout
+    // and the fullscreen portal so fullscreen keeps the flow/API-call navigation.
+    const flowsPane = (
+        <>
+            <FlowsSidebar
+                flows={flows}
+                selectedFlow={selectedFlow}
+                setSelectedFlow={setSelectedFlow}
+                selectedFlowAction={selectedFlowAction}
+                setSelectedFlowAction={setSelectedFlowAction}
+                sidebarOpen={sidebarOpen}
+            />
+
+            <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSidebarOpen((prev) => !prev)}
+                title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                className={`absolute top-4 z-20 -translate-x-1/2 flex items-center justify-center w-5 h-9 rounded-full bg-white dark:bg-surface-elevated border border-slate-200 dark:border-border-default shadow-sm hover:bg-slate-50 dark:hover:bg-surface-muted transition-[left] duration-300 ease-in-out motion-reduce:transition-none ${
+                    sidebarOpen ? "left-80" : "left-0"
+                }`}
+            >
+                <ChevronLeftIcon
+                    className={`w-3 h-3 text-slate-400 transition-transform duration-300 ease-in-out motion-reduce:transition-none ${
+                        sidebarOpen ? "" : "rotate-180"
+                    }`}
+                />
+            </Button>
+        </>
+    );
+
     const detailPane = selectedFlowAction && selectedStep && (
         <div
             className={cn(
                 "flex flex-col min-h-0",
                 isFullscreen
-                    ? "h-full w-full"
+                    ? "h-full flex-1 min-w-0 pl-4"
                     : "flex-1 min-w-0 pl-4 sticky top-4 self-start h-[calc(100vh-6rem)] overflow-hidden"
             )}
         >
@@ -156,6 +187,8 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 hasExampleObject={hasExampleObject}
                 hasStep={!!selectedStep}
                 hasXValidations={hasXValidations}
+                hasXinput={hasXinput}
+                hasSequence={!!sequenceMermaid}
             />
 
             <GuideTabFade
@@ -212,6 +245,13 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 {activeSection === "x-validations" && hasXValidations && selectedValidations && (
                     <ValidationsTable validations={selectedValidations} />
                 )}
+
+                {activeSection === "xinput" && hasXinput && (
+                    <XinputFormPanel
+                        info={xinputInfo}
+                        actionLabel={selectedStep?.action_id ?? selectedFlowAction}
+                    />
+                )}
             </GuideTabFade>
         </div>
     );
@@ -234,45 +274,20 @@ const FlowInformation: FC<FlowInformationProps> = ({
                         <div className="border-slate-200 dark:border-border-default">
                             <div className="relative flex items-start gap-0 mt-2 mb-4">
                                 {/* Left pane: flows accordion/sidebar — fixed across tab changes */}
-                                {!isFullscreen && (
-                                    <>
-                                        <FlowsSidebar
-                                            flows={flows}
-                                            selectedFlow={selectedFlow}
-                                            setSelectedFlow={setSelectedFlow}
-                                            selectedFlowAction={selectedFlowAction}
-                                            setSelectedFlowAction={setSelectedFlowAction}
-                                            sidebarOpen={sidebarOpen}
-                                        />
+                                {!isFullscreen && flowsPane}
 
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setSidebarOpen((prev) => !prev)}
-                                            title={
-                                                sidebarOpen ? "Collapse sidebar" : "Expand sidebar"
-                                            }
-                                            className={`absolute top-4 z-20 -translate-x-1/2 flex items-center justify-center w-5 h-9 rounded-full bg-white dark:bg-surface-elevated border border-slate-200 dark:border-border-default shadow-sm hover:bg-slate-50 dark:hover:bg-surface-muted transition-[left] duration-300 ease-in-out motion-reduce:transition-none ${
-                                                sidebarOpen ? "left-80" : "left-0"
-                                            }`}
-                                        >
-                                            <ChevronLeftIcon
-                                                className={`w-3 h-3 text-slate-400 transition-transform duration-300 ease-in-out motion-reduce:transition-none ${
-                                                    sidebarOpen ? "" : "rotate-180"
-                                                }`}
-                                            />
-                                        </Button>
-                                    </>
-                                )}
-
-                                {/* Right pane: title/badge + section tabs + content */}
+                                {/* Right pane: title/badge + section tabs + content. Fullscreen
+                                    portals BOTH panes so the flow/API-call list stays available. */}
                                 {isFullscreen
                                     ? createPortal(
                                           <div
                                               data-reveal-skip
                                               className="fixed inset-0 z-50 bg-white dark:bg-surface-page flex flex-col p-4 md:p-6 overflow-hidden"
                                           >
-                                              {detailPane}
+                                              <div className="relative flex items-start gap-0 h-full w-full min-h-0">
+                                                  {flowsPane}
+                                                  {detailPane}
+                                              </div>
                                           </div>,
                                           portalTarget
                                       )

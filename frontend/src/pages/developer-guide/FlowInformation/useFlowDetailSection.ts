@@ -38,6 +38,7 @@ export function useFlowDetailSection({
             "x-validations",
             "request",
             "response",
+            "xinput",
         ];
 
         if (isFirstActionEffect.current) {
