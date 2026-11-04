@@ -14,8 +14,10 @@ export interface PortalConfig {
 	tokenProblem?: string;
 	/** Requests allowed per caller per minute, health included. */
 	rateLimitPerMinute: number;
-	/** automation-db, checked by the health endpoint; null when not configured. */
+	/** automation-db, where the data lives; null when not configured. */
 	dbServiceUrl: string | null;
+	/** Key for automation-db's internal routes. */
+	dbApiKey: string | null;
 }
 
 const DEFAULT_RATE_LIMIT_PER_MINUTE = 120;
@@ -41,5 +43,6 @@ export function loadPortalConfig(): PortalConfig {
 		rateLimitPerMinute:
 			Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_RATE_LIMIT_PER_MINUTE,
 		dbServiceUrl: process.env.DB_SERVICE?.trim().replace(/\/$/, "") || null,
+		dbApiKey: process.env.DB_SERVICE_API_KEY?.trim() || null,
 	};
 }

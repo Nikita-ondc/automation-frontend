@@ -36,6 +36,7 @@ const appWith = (overrides: Partial<PortalConfig> = {}) => {
 			apiToken: TOKEN,
 			rateLimitPerMinute: 100,
 			dbServiceUrl: null,
+			dbApiKey: null,
 			...overrides,
 		})
 	);
