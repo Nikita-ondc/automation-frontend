@@ -1,9 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import axios from "axios";
 import type { PortalConfig } from "../config/portalConfig";
-import { fetchFlows, fetchSessionScope } from "../services/portalDbService";
+import { fetchFlows, fetchSessions, fetchSessionScope } from "../services/portalDbService";
 import { parseFlowsQuery, readQuery, sortFlows, toFlowMeta } from "../utils/portalFlows";
 import { sendProblem, toRfc3339 } from "../utils/portalProblem";
+import { parseSessionsQuery, toSessionListItem } from "../utils/portalSessions";
 
 const DB_HEALTH_TIMEOUT_MS = 2000;
 
@@ -60,6 +61,27 @@ export const listFlows =
 
 			const flows = (await fetchFlows(config, query)).map(toFlowMeta);
 			res.json({ data: sortFlows(flows, query.sort, query.order) });
+		} catch (e) {
+			next(e);
+		}
+	};
+
+/**
+ * GET /v1/organizations/{org_id}/sessions. Workbench has no list of organisations,
+ * so one it has never seen is an empty list, not a 404.
+ */
+export const listSessions =
+	(config: PortalConfig) => async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const orgId = req.params.org_id;
+			const { query, errors } = parseSessionsQuery(readQuery(req.originalUrl), orgId);
+			if (errors.length) {
+				sendProblem(res, 400, "One or more filters are invalid", errors);
+				return;
+			}
+
+			const { sessions, hasMore } = await fetchSessions(config, orgId, query);
+			res.json({ data: sessions.map(toSessionListItem), has_more: hasMore });
 		} catch (e) {
 			next(e);
 		}

@@ -73,10 +73,8 @@ export function readQuery(originalUrl: string): Record<string, string | string[]
 	return query;
 }
 
-export function parseFlowsQuery(raw: Record<string, unknown>): {
-	query: FlowsQuery;
-	errors: ProblemFieldError[];
-} {
+/** Readers for query parameters, each noting what it rejects in `errors`. */
+export function queryReader(raw: Record<string, unknown>) {
 	const errors: ProblemFieldError[] = [];
 	const fail = (name: string, message: string) => {
 		errors.push({ field: `/${name}`, message });
@@ -103,18 +101,30 @@ export function parseFlowsQuery(raw: Record<string, unknown>): {
 			: (values as string[]);
 	};
 
-	const choice = <T extends string>(name: string, allowed: T[], fallback: T): T => {
+	const choice = <T extends string>(name: string, allowed: T[]): T | undefined => {
 		const value = single(name);
-		if (value === undefined) return fallback;
+		if (value === undefined) return undefined;
 		if ((allowed as string[]).includes(value)) return value as T;
-		fail(name, `must be one of: ${allowed.join(", ")}`);
-		return fallback;
+		return fail(name, `must be one of: ${allowed.join(", ")}`);
 	};
 
-	const q = single("q");
-	if (q !== undefined && (q.length < 2 || q.length > 100)) {
-		fail("q", "must be 2 to 100 characters long");
-	}
+	const search = (name: string): string | undefined => {
+		const value = single(name);
+		return value !== undefined && (value.length < 2 || value.length > 100)
+			? fail(name, "must be 2 to 100 characters long")
+			: value;
+	};
+
+	return { errors, fail, single, list, choice, search };
+}
+
+export function parseFlowsQuery(raw: Record<string, unknown>): {
+	query: FlowsQuery;
+	errors: ProblemFieldError[];
+} {
+	const { errors, fail, single, list, choice, search } = queryReader(raw);
+
+	const q = search("q");
 	const sessionId = single("session_id");
 	if (sessionId !== undefined && sessionId.length > MAX_SESSION_ID_LENGTH) {
 		fail("session_id", `must be at most ${MAX_SESSION_ID_LENGTH} characters long`);
@@ -129,10 +139,10 @@ export function parseFlowsQuery(raw: Record<string, unknown>): {
 			usecases: list("usecase_id", 50),
 			flowIds: list("flow_id", 100),
 			tags: list("tag", 20),
-			tagMatch: choice("tag_match", ["any", "all"], "any"),
+			tagMatch: choice("tag_match", ["any", "all"]) ?? "any",
 			actions: list("action", 20),
-			sort: choice("sort", ["flow_id", "title", "total_steps"], "flow_id"),
-			order: choice("order", ["asc", "desc"], "asc"),
+			sort: choice("sort", ["flow_id", "title", "total_steps"]) ?? "flow_id",
+			order: choice("order", ["asc", "desc"]) ?? "asc",
 		},
 		errors,
 	};

@@ -3,7 +3,7 @@ import { NextFunction, Request, Response, Router } from "express";
 import rateLimit from "express-rate-limit";
 import logger from "@ondc/automation-logger";
 import { loadPortalConfig, type PortalConfig } from "../config/portalConfig";
-import { getHealth, listFlows } from "../controllers/portalController";
+import { getHealth, listFlows, listSessions } from "../controllers/portalController";
 import { requirePortalToken } from "../middlewares/portalAuth";
 import { portalRequestId } from "../middlewares/portalRequestId";
 import { sendProblem } from "../utils/portalProblem";
@@ -43,6 +43,7 @@ export function portalRoutes(config: PortalConfig): Router {
 	router.use(requirePortalToken(config));
 
 	router.get("/flows", listFlows(config));
+	router.get("/organizations/:org_id/sessions", listSessions(config));
 
 	router.use((req: Request, res: Response) =>
 		sendProblem(res, 404, `No such endpoint: ${req.method} ${req.baseUrl}${req.path}`)

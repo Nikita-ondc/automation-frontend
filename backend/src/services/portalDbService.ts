@@ -1,6 +1,7 @@
 import axios from "axios";
 import type { PortalConfig } from "../config/portalConfig";
 import type { FlowsQuery, StoredFlow } from "../utils/portalFlows";
+import type { SessionsQuery, StoredSession } from "../utils/portalSessions";
 
 /** Internal automation-db routes behind the Portal Integration API. */
 
@@ -40,6 +41,36 @@ export const fetchFlows = async (
 		},
 	});
 	return response.data.flows;
+};
+
+export const fetchSessions = async (
+	config: PortalConfig,
+	orgId: string,
+	query: SessionsQuery
+): Promise<{ sessions: StoredSession[]; hasMore: boolean }> => {
+	const response = await dbRequest(config).get(
+		`/api/sessions/portal/${encodeURIComponent(orgId)}`,
+		{
+			params: {
+				q: query.q,
+				status: query.status,
+				result: query.results,
+				userId: query.userIds,
+				domain: query.domains,
+				version: query.versions,
+				usecaseId: query.usecaseIds,
+				npType: query.npType,
+				sessionType: query.sessionType,
+				npId: query.subscriberUrls,
+				flowId: query.flowIds,
+				createdFrom: query.createdFrom,
+				createdTo: query.createdTo,
+				lastActivityFrom: query.lastActivityFrom,
+				lastActivityTo: query.lastActivityTo,
+			},
+		}
+	);
+	return response.data;
 };
 
 /** The session's organisation and build, or null if there is no such session. */
