@@ -212,6 +212,28 @@ export const updateFlowInSession = async (sessionId: string, flow: Flow) => {
   }
 };
 
+/** One setting whose value changed, by its Workbench name. */
+export interface SettingChange {
+  setting: string;
+  previousValue: boolean;
+  newValue: boolean;
+}
+
+export const saveSessionSettingsInDb = async (
+  sessionId: string,
+  data: {
+    settings: Record<string, boolean>;
+    changedBy?: string;
+    changes: SettingChange[];
+  },
+) => {
+  await axios2.post(
+    `${DB_SERVICE}/api/sessions/${encodeURIComponent(sessionId)}/settings`,
+    data,
+    { headers: { "x-api-key": DB_SERVICE_API_KEY } },
+  );
+};
+
 export const upsertSessionInDb = async (
   sessionId: string,
   data: {
@@ -222,6 +244,7 @@ export const upsertSessionInDb = async (
     usecaseId?: string,
     domain?: string;
     version?: string;
+    settings?: Record<string, boolean>;
     // No `flowMap` here, on purpose. automation-db's `SessionDetails.flowMap` is a
     // per-flow verdict map (`flowId -> "PASS" | "FAIL"`) written solely by the report
     // service. This BFF has no verdicts to report, and the field it would naturally

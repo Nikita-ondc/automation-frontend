@@ -5,8 +5,10 @@ import express from "express";
 import { portalRoutes } from "../routes/portalRoutes";
 import {
 	parseSessionsQuery,
+	toSessionDetail,
 	toSessionListItem,
 	type StoredSession,
+	type StoredSessionDetail,
 } from "../utils/portalSessions";
 
 /** GET /v1/organizations/{org_id}/sessions against a stand-in for automation-db. */
@@ -232,3 +234,157 @@ describe("toSessionListItem", () => {
 		expect(item).toMatchObject({ domain: null, version: null, usecase_id: null });
 	});
 });
+
+const storedDetail = (overrides: Partial<StoredSessionDetail> = {}): StoredSessionDetail => ({
+	...stored(),
+	orgId: "org_1",
+	expiresAt: "2026-10-25T08:03:10.456Z",
+	reportExists: false,
+	flowSummary: [
+		{ flowId: "ORDER", totalSteps: 4, passedSteps: 2, failedSteps: 1, transactionIds: ["t1", "t2"] },
+	],
+	settings: {
+		protocolValidations: true,
+		headerValidaton: false,
+		timeValidations: true,
+		sensitiveTTL: true,
+		useGateway: false,
+		stopAfterFirstNack: true,
+		useGzip: false,
+	},
+	settingsHistory: [
+		{
+			changedAt: "2026-10-21T07:45:02.999Z",
+			changedBy: "25716",
+			changes: [{ setting: "headerValidaton", previousValue: true, newValue: false }],
+		},
+	],
+	...overrides,
+});
+
+describe("GET /v1/organizations/{org_id}/sessions/{session_id}", () => {
+	let server: Server;
+	let dbUrl: string;
+	let received: string[];
+	let reply: StoredSessionDetail | null;
+	let failDb: boolean;
+
+	beforeAll(() => {
+		const db = express();
+		db.use((req, res) => {
+			received.push(req.path);
+			if (failDb) return res.status(500).end();
+			return reply ? res.json(reply) : res.status(404).end();
+		});
+		server = db.listen(0);
+		const address = server.address();
+		dbUrl = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
+	});
+	afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+	beforeEach(() => {
+		received = [];
+		reply = storedDetail();
+		failDb = false;
+	});
+
+	const unauthed = (url: string) => {
+		const app = express();
+		app.use(
+			"/v1",
+			portalRoutes({ apiToken: TOKEN, rateLimitPerMinute: 1000, dbServiceUrl: dbUrl, dbApiKey: DB_KEY })
+		);
+		return request(app).get(url);
+	};
+	const call = (url: string) => unauthed(url).set("Authorization", `Bearer ${TOKEN}`);
+
+	it("needs the token", async () => {
+		expect((await unauthed("/v1/organizations/org_1/sessions/sess_1")).status).toBe(401);
+		expect(received).toEqual([]);
+	});
+
+	it("returns the session in the contract's format", async () => {
+		const res = await call("/v1/organizations/org_1/sessions/sess_1");
+
+		expect(res.status).toBe(200);
+		expect(received).toEqual(["/api/sessions/portal/org_1/sess_1"]);
+		expect(res.body).toEqual({
+			session_id: "sess_1",
+			org_id: "org_1",
+			user_id: "25716",
+			status: "active",
+			result: "failed",
+			session_type: "AUTOMATION",
+			np_type: "BAP",
+			subscriber_url: "https://buyer.example-np.in/ondc",
+			domain: "ONDC:RET10",
+			version: "1.2.5",
+			usecase_id: "GROCERY",
+			created_at: "2026-10-20T09:12:44Z",
+			last_activity_at: "2026-10-21T08:03:10Z",
+			expires_at: "2026-10-25T08:03:10Z",
+			report_available: false,
+			flow_summary: [
+				{ flow_id: "ORDER", total_steps: 4, passed_steps: 2, failed_steps: 1, transaction_ids: ["t1", "t2"] },
+			],
+			settings: {
+				protocol_validation: true,
+				header_validation: false,
+				time_validation: true,
+				sensitive_ttl: true,
+				use_gateway: false,
+				stop_after_first_nack: true,
+				use_gzip: false,
+			},
+			settings_history: [
+				{
+					changed_at: "2026-10-21T07:45:02Z",
+					changed_by: "25716",
+					changes: [{ setting: "header_validation", previous_value: true, new_value: false }],
+				},
+			],
+		});
+	});
+
+	it("answers 404 when automation-db has no such session for the company", async () => {
+		reply = null;
+
+		const res = await call("/v1/organizations/org_1/sessions/nope");
+
+		expect(res.status).toBe(404);
+		expect(res.type).toBe("application/problem+json");
+	});
+
+	it("answers 404 for IDs too long to exist, without calling automation-db", async () => {
+		expect((await call(`/v1/organizations/${"x".repeat(65)}/sessions/s`)).status).toBe(404);
+		expect((await call(`/v1/organizations/o/sessions/${"x".repeat(129)}`)).status).toBe(404);
+		expect(received).toEqual([]);
+	});
+
+	it("answers 500 as a problem when automation-db fails", async () => {
+		failDb = true;
+
+		const res = await call("/v1/organizations/org_1/sessions/sess_1");
+
+		expect(res.status).toBe(500);
+		expect(res.type).toBe("application/problem+json");
+	});
+});
+
+describe("toSessionDetail", () => {
+	it("keeps null for an expired session's expiry and an older session's settings", () => {
+		const detail = toSessionDetail(
+			storedDetail({ expiresAt: null, settings: null, settingsHistory: [] })
+		);
+
+		expect(detail).toMatchObject({ expires_at: null, settings: null, settings_history: [] });
+	});
+
+	it("includes optional settings only once they are saved", () => {
+		const { settings } = toSessionDetail(
+			storedDetail({ settings: { useCare: false, useTunnelForFIS: true } })
+		);
+
+		expect(settings).toEqual({ use_care: false, use_tunnel: true });
+	});
+});
+

@@ -1,10 +1,20 @@
 import { NextFunction, Request, Response } from "express";
 import axios from "axios";
 import type { PortalConfig } from "../config/portalConfig";
-import { fetchFlows, fetchSessions, fetchSessionScope } from "../services/portalDbService";
+import {
+	fetchFlows,
+	fetchSession,
+	fetchSessions,
+	fetchSessionScope,
+} from "../services/portalDbService";
 import { parseFlowsQuery, readQuery, sortFlows, toFlowMeta } from "../utils/portalFlows";
 import { sendProblem, toRfc3339 } from "../utils/portalProblem";
-import { parseSessionsQuery, toSessionListItem } from "../utils/portalSessions";
+import {
+	isValidSessionPath,
+	parseSessionsQuery,
+	toSessionDetail,
+	toSessionListItem,
+} from "../utils/portalSessions";
 
 const DB_HEALTH_TIMEOUT_MS = 2000;
 
@@ -82,6 +92,27 @@ export const listSessions =
 
 			const { sessions, hasMore } = await fetchSessions(config, orgId, query);
 			res.json({ data: sessions.map(toSessionListItem), has_more: hasMore });
+		} catch (e) {
+			next(e);
+		}
+	};
+
+/**
+ * GET /v1/organizations/{org_id}/sessions/{session_id}. The contract has no 400
+ * here, so an ID that could never match answers 404 like any other unknown one.
+ */
+export const getSession =
+	(config: PortalConfig) => async (req: Request, res: Response, next: NextFunction) => {
+		try {
+			const { org_id: orgId, session_id: sessionId } = req.params;
+			const session = isValidSessionPath(orgId, sessionId)
+				? await fetchSession(config, orgId, sessionId)
+				: null;
+			if (!session) {
+				sendProblem(res, 404, "Session not found");
+				return;
+			}
+			res.json(toSessionDetail(session));
 		} catch (e) {
 			next(e);
 		}

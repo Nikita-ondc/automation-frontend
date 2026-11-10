@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { PortalConfig } from "../config/portalConfig";
 import type { FlowsQuery, StoredFlow } from "../utils/portalFlows";
-import type { SessionsQuery, StoredSession } from "../utils/portalSessions";
+import type { SessionsQuery, StoredSession, StoredSessionDetail } from "../utils/portalSessions";
 
 /** Internal automation-db routes behind the Portal Integration API. */
 
@@ -71,6 +71,25 @@ export const fetchSessions = async (
 		}
 	);
 	return response.data;
+};
+
+/** The company's session, or null if it has no such session. */
+export const fetchSession = async (
+	config: PortalConfig,
+	orgId: string,
+	sessionId: string
+): Promise<StoredSessionDetail | null> => {
+	try {
+		const response = await dbRequest(config).get(
+			`/api/sessions/portal/${encodeURIComponent(orgId)}/${encodeURIComponent(sessionId)}`
+		);
+		return response.data;
+	} catch (e: any) {
+		if (e?.response?.status === 404) {
+			return null;
+		}
+		throw e;
+	}
 };
 
 /** The session's organisation and build, or null if there is no such session. */

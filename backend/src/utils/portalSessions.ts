@@ -2,7 +2,7 @@ import { queryReader } from "./portalFlows";
 import type { ProblemFieldError } from "./portalProblem";
 import { toRfc3339 } from "./portalProblem";
 
-/** GET /v1/organizations/{org_id}/sessions: its filters, and SessionListItem. */
+/** The Portal API's session endpoints: list filters, SessionListItem and SessionDetail. */
 
 export interface SessionsQuery {
 	q?: string;
@@ -38,7 +38,42 @@ export interface StoredSession {
 	lastActivityAt: string;
 }
 
+/** One session as automation-db returns it. Settings use Workbench's own names. */
+export interface StoredSessionDetail extends StoredSession {
+	orgId: string;
+	expiresAt: string | null;
+	reportExists: boolean;
+	flowSummary: {
+		flowId: string;
+		totalSteps: number;
+		passedSteps: number;
+		failedSteps: number;
+		transactionIds: string[];
+	}[];
+	settings: Record<string, boolean> | null;
+	settingsHistory: {
+		changedAt: string;
+		changedBy: string;
+		changes: { setting: string; previousValue: boolean; newValue: boolean }[];
+	}[];
+}
+
+/** Workbench's setting names, `headerValidaton` typo included, as the contract's. */
+const SETTING_NAMES: Record<string, string> = {
+	protocolValidations: "protocol_validation",
+	headerValidaton: "header_validation",
+	timeValidations: "time_validation",
+	sensitiveTTL: "sensitive_ttl",
+	useGateway: "use_gateway",
+	stopAfterFirstNack: "stop_after_first_nack",
+	useGzip: "use_gzip",
+	encryptionValidation: "encryption_validation",
+	useCare: "use_care",
+	useTunnelForFIS: "use_tunnel",
+};
+
 const MAX_ORG_ID_LENGTH = 64;
+const MAX_SESSION_ID_LENGTH = 128;
 const RESULTS = ["passed", "failed", "incomplete"];
 const RFC_3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i;
 
@@ -109,4 +144,38 @@ export const toSessionListItem = (session: StoredSession) => ({
 	usecase_id: session.usecaseId ?? null,
 	created_at: toRfc3339(new Date(session.createdAt)),
 	last_activity_at: toRfc3339(new Date(session.lastActivityAt)),
+});
+
+export const isValidSessionPath = (orgId: string, sessionId: string): boolean =>
+	orgId.length <= MAX_ORG_ID_LENGTH && sessionId.length <= MAX_SESSION_ID_LENGTH;
+
+const toContractSettings = (settings: Record<string, boolean>) =>
+	Object.fromEntries(
+		Object.entries(SETTING_NAMES)
+			.filter(([stored]) => typeof settings[stored] === "boolean")
+			.map(([stored, name]) => [name, settings[stored]])
+	);
+
+export const toSessionDetail = (session: StoredSessionDetail) => ({
+	...toSessionListItem(session),
+	org_id: session.orgId,
+	expires_at: session.expiresAt && toRfc3339(new Date(session.expiresAt)),
+	report_available: session.reportExists,
+	flow_summary: session.flowSummary.map((flow) => ({
+		flow_id: flow.flowId,
+		total_steps: flow.totalSteps,
+		passed_steps: flow.passedSteps,
+		failed_steps: flow.failedSteps,
+		transaction_ids: flow.transactionIds,
+	})),
+	settings: session.settings && toContractSettings(session.settings),
+	settings_history: session.settingsHistory.map((entry) => ({
+		changed_at: toRfc3339(new Date(entry.changedAt)),
+		changed_by: entry.changedBy,
+		changes: entry.changes.map((change) => ({
+			setting: SETTING_NAMES[change.setting] ?? change.setting,
+			previous_value: change.previousValue,
+			new_value: change.newValue,
+		})),
+	})),
 });
