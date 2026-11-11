@@ -8,6 +8,7 @@ interface DetailTabsHeaderProps {
     hasExampleObject: boolean;
     hasStep: boolean;
     hasXValidations: boolean;
+    hasXInputFormDoc?: boolean;
     hasSequenceDiagram: boolean;
 }
 
@@ -17,6 +18,7 @@ const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
     hasExampleObject,
     hasStep,
     hasXValidations,
+    hasXInputFormDoc = false,
     hasSequenceDiagram,
 }) => (
     <GuideTabs<FlowInformationSection>
@@ -44,6 +46,11 @@ const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
                     id: "x-validations",
                     label: "Validations",
                     visible: hasXValidations,
+                },
+                {
+                    id: "xinput-form",
+                    label: "xInput Form",
+                    visible: hasXInputFormDoc,
                 },
             ] satisfies GuideTabItem<FlowInformationSection>[]
         }

@@ -13,9 +13,12 @@ import { useFlowDetailSection } from "./useFlowDetailSection";
 import { useValidationTable } from "./useValidationTable";
 import { useSelectedFlowStep } from "./useSelectedFlowStep";
 import FlowsSidebar from "./FlowsSidebar";
+import XInputFormTab from "./XInputFormTab";
 import type { FlowInformationProps, FlowInformationSection } from "./types";
 import GuideTabFade from "../shared/components/GuideTabFade";
 import { cn } from "@/lib/utils";
+import { getDomainFriendlyName } from "../domainGrouping";
+import { resolveXInputFormDoc } from "../content/resolveUseCaseDocs";
 
 const FlowInformation: FC<FlowInformationProps> = ({
     data,
@@ -60,6 +63,14 @@ const FlowInformation: FC<FlowInformationProps> = ({
     );
 
     const resetExampleIndex = useCallback(() => setSelectedExampleIndex(0), []);
+    const isInsuranceDomain = getDomainFriendlyName(domain) === "Insurance";
+    const xInputFormContent = useMemo(
+        () =>
+            isInsuranceDomain
+                ? resolveXInputFormDoc(data["x-docs"], selectedFlowData?.usecase)
+                : undefined,
+        [isInsuranceDomain, data, selectedFlowData?.usecase]
+    );
 
     const { activeSection, showPreviewDetails, handleSectionChange } = useFlowDetailSection({
         selectedFlowAction,
@@ -93,8 +104,10 @@ const FlowInformation: FC<FlowInformationProps> = ({
             order.push("request", "response");
         }
         if (hasXValidations) order.push("x-validations");
+        if (xInputFormContent) order.push("xinput-form");
         return order;
-    }, [sequenceMermaid, selectedStep, hasXValidations]);
+    }, [hasExampleObject, selectedStep, hasXValidations, xInputFormContent, sequenceMermaid]);
+ 
 
     if (isEmpty) {
         return (
@@ -166,6 +179,7 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 hasExampleObject={hasExampleObject}
                 hasStep={!!selectedStep}
                 hasXValidations={hasXValidations}
+                hasXInputFormDoc={!!xInputFormContent}
                 hasSequenceDiagram={!!sequenceMermaid}
             />
 
@@ -229,6 +243,12 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 {activeSection === "x-validations" && hasXValidations && selectedValidations && (
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                         <ValidationsTable validations={selectedValidations} />
+                    </div>
+                )}
+
+                {activeSection === "xinput-form" && xInputFormContent && (
+                    <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                        <XInputFormTab content={xInputFormContent} />
                     </div>
                 )}
             </GuideTabFade>

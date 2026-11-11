@@ -99,4 +99,16 @@ export function resolveChangelogDoc(
     return entry ? prepareDocContent(entry[1]) : undefined;
 }
 
+const X_INPUT_FORM_RESPONSE_RE = /x-?input-form-response/i;
+
+export function resolveXInputFormDoc(
+    apiDocs: Record<string, string> | undefined,
+    useCaseId: string | undefined
+): string | undefined {
+    const resources = resolveAdditionalResourcesDocs(apiDocs, useCaseId);
+    if (!resources) return undefined;
+    const entry = Object.entries(resources).find(([slug]) => X_INPUT_FORM_RESPONSE_RE.test(slug));
+    return entry?.[1];
+}
+
 export { isAdditionalResourcesSlug, isChangelogSlug, isSequenceDiagramDocSlug };
