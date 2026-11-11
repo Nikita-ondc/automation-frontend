@@ -9,6 +9,7 @@ interface DetailTabsHeaderProps {
     hasStep: boolean;
     hasXValidations: boolean;
     hasXInputFormDoc?: boolean;
+    hasSequenceDiagram: boolean;
 }
 
 const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
@@ -18,17 +19,18 @@ const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
     hasStep,
     hasXValidations,
     hasXInputFormDoc = false,
+    hasSequenceDiagram,
 }) => (
     <GuideTabs<FlowInformationSection>
         active={activeSection}
         onChange={onChange}
         tabs={
             [
-                // {
-                //     id: "sequence",
-                //     label: "Sequence Diagram",
-                //     visible: true,
-                // },// commenting Sequence Diagram as there is not diagrams available
+                {
+                    id: "sequence",
+                    label: "Sequence Diagram",
+                    visible: hasSequenceDiagram,
+                },
                 {
                     id: "preview",
                     label: "Example Payload",

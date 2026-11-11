@@ -58,7 +58,8 @@ const FlowInformation: FC<FlowInformationProps> = ({
         selectedFlow,
         selectedFlowAction,
         selectedExampleIndex,
-        validationTable
+        validationTable,
+        data?.["x-docs"]
     );
 
     const resetExampleIndex = useCallback(() => setSelectedExampleIndex(0), []);
@@ -96,15 +97,17 @@ const FlowInformation: FC<FlowInformationProps> = ({
     }, [isFullscreen]);
 
     const detailTabOrder = useMemo(() => {
-        const order: FlowInformationSection[] = ["preview"]; // setting default preview as there is no sequence diagram
-        if (hasExampleObject) order.push("preview");
+        const order: FlowInformationSection[] = [];
+        if (sequenceMermaid) order.push("sequence");
+        order.push("preview");
         if (selectedStep) {
             order.push("request", "response");
         }
         if (hasXValidations) order.push("x-validations");
         if (xInputFormContent) order.push("xinput-form");
         return order;
-    }, [hasExampleObject, selectedStep, hasXValidations, xInputFormContent]);
+    }, [hasExampleObject, selectedStep, hasXValidations, xInputFormContent, sequenceMermaid]);
+ 
 
     if (isEmpty) {
         return (
@@ -177,6 +180,7 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 hasStep={!!selectedStep}
                 hasXValidations={hasXValidations}
                 hasXInputFormDoc={!!xInputFormContent}
+                hasSequenceDiagram={!!sequenceMermaid}
             />
 
             <GuideTabFade
