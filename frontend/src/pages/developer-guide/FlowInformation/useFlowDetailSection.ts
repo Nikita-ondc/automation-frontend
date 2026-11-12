@@ -4,8 +4,19 @@ import type { FlowInformationSection } from "./types";
 import { useDeferredReveal } from "./useDeferredReveal";
 import { resolveDefaultSection } from "./utils";
 
+const KNOWN_SECTIONS: FlowInformationSection[] = [
+    "sequence",
+    "preview",
+    "x-validations",
+    "request",
+    "response",
+    "xinput-form",
+    "html-form",
+];
+
 interface UseFlowDetailSectionParams {
     selectedFlowAction: string;
+    availableSections: FlowInformationSection[];
     /** Called when the section resets to a default (e.g. on action change) so the caller can reset its own example index. */
     onSectionReset: () => void;
 }
@@ -18,6 +29,7 @@ interface UseFlowDetailSectionParams {
  */
 export function useFlowDetailSection({
     selectedFlowAction,
+    availableSections,
     onSectionReset,
 }: UseFlowDetailSectionParams) {
     const [searchParams, setSearchParams] = useSearchParams();
@@ -31,26 +43,22 @@ export function useFlowDetailSection({
 
     const urlTab = searchParams.get("tab") as FlowInformationSection | null;
 
-    useEffect(() => {
-        const validSections: FlowInformationSection[] = [
-            "sequence",
-            "preview",
-            "x-validations",
-            "request",
-            "response",
-            "xinput-form",
-            "html-form",
-        ];
+    const isSectionAvailable = useCallback(
+        (section: FlowInformationSection | null): section is FlowInformationSection =>
+            !!section && KNOWN_SECTIONS.includes(section) && availableSections.includes(section),
+        [availableSections]
+    );
 
+    useEffect(() => {
         if (isFirstActionEffect.current) {
             isFirstActionEffect.current = false;
-            if (urlTab && validSections.includes(urlTab)) {
+            if (isSectionAvailable(urlTab)) {
                 setActiveSection(urlTab);
                 return;
             }
         }
 
-        if (urlTab && validSections.includes(urlTab)) {
+        if (isSectionAvailable(urlTab)) {
             if (activeSection !== urlTab) {
                 setActiveSection(urlTab);
                 if (urlTab === "preview") {
@@ -83,6 +91,7 @@ export function useFlowDetailSection({
         }
     }, [
         selectedFlowAction,
+        isSectionAvailable,
         scheduleShowDetails,
         hidePreviewDetails,
         urlTab,

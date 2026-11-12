@@ -73,8 +73,29 @@ const FlowInformation: FC<FlowInformationProps> = ({
         [selectedStep]
     );
 
+    const detailTabOrder = useMemo(() => {
+        const order: FlowInformationSection[] = [];
+        if (sequenceMermaid) order.push("sequence");
+        order.push("preview");
+        if (selectedStep) {
+            order.push("request", "response");
+        }
+        if (formHtml) order.push("html-form");
+        if (hasXValidations) order.push("x-validations");
+        if (xInputFormContent) order.push("xinput-form");
+        return order;
+    }, [
+        hasExampleObject,
+        selectedStep,
+        hasXValidations,
+        xInputFormContent,
+        sequenceMermaid,
+        formHtml,
+    ]);
+
     const { activeSection, showPreviewDetails, handleSectionChange } = useFlowDetailSection({
         selectedFlowAction,
+        availableSections: detailTabOrder,
         onSectionReset: resetExampleIndex,
     });
 
@@ -96,26 +117,6 @@ const FlowInformation: FC<FlowInformationProps> = ({
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
     }, [isFullscreen]);
-
-    const detailTabOrder = useMemo(() => {
-        const order: FlowInformationSection[] = [];
-        if (sequenceMermaid) order.push("sequence");
-        order.push("preview");
-        if (selectedStep) {
-            order.push("request", "response");
-        }
-        if (formHtml) order.push("html-form");
-        if (hasXValidations) order.push("x-validations");
-        if (xInputFormContent) order.push("xinput-form");
-        return order;
-    }, [
-        hasExampleObject,
-        selectedStep,
-        hasXValidations,
-        xInputFormContent,
-        sequenceMermaid,
-        formHtml,
-    ]);
 
     if (isEmpty) {
         return (

@@ -1,5 +1,5 @@
-import { useMemo, useState, type FC } from "react";
-import { DocumentDuplicateIcon } from "@heroicons/react/24/outline";
+import { useEffect, useMemo, useRef, useState, type FC } from "react";
+import { CheckIcon, DocumentDuplicateIcon } from "@heroicons/react/24/outline";
 import { Button } from "@components/Shadcn/Button";
 import { useClipboard } from "@hooks/useClipboard";
 import {
@@ -17,6 +17,22 @@ const HtmlFormPreviewTab: FC<HtmlFormPreviewTabProps> = ({ formHtml }) => {
     const parsed = useMemo(() => parseFormHtml(formHtml), [formHtml]);
     const [values, setValues] = useState<ValueState>(() => buildInitialValues(parsed.fields));
     const { copyToClipboard } = useClipboard();
+    const [copied, setCopied] = useState(false);
+    const copiedResetTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+    const handleCopy = async () => {
+        const didCopy = await copyToClipboard(formHtml);
+        if (!didCopy) return;
+        setCopied(true);
+        clearTimeout(copiedResetTimeout.current);
+        copiedResetTimeout.current = setTimeout(() => setCopied(false), 1500);
+    };
+
+    useEffect(() => () => clearTimeout(copiedResetTimeout.current), []);
+
+    useEffect(() => {
+        setValues(buildInitialValues(parsed.fields));
+    }, [parsed.fields]);
 
     if (!parsed.hasForm) {
         return (
@@ -37,12 +53,16 @@ const HtmlFormPreviewTab: FC<HtmlFormPreviewTabProps> = ({ formHtml }) => {
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => void copyToClipboard(formHtml)}
+                    onClick={() => void handleCopy()}
                     title="Copy form HTML"
                     aria-label="Copy form HTML"
                     className="shrink-0"
                 >
-                    <DocumentDuplicateIcon className="size-4" />
+                    {copied ? (
+                        <CheckIcon className="size-4 text-success-500" />
+                    ) : (
+                        <DocumentDuplicateIcon className="size-4" />
+                    )}
                 </Button>
             </div>
             <div className="grid grid-cols-1 gap-4">
