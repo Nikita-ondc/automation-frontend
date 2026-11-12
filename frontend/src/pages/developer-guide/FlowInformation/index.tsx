@@ -14,11 +14,12 @@ import { useValidationTable } from "./useValidationTable";
 import { useSelectedFlowStep } from "./useSelectedFlowStep";
 import FlowsSidebar from "./FlowsSidebar";
 import XInputFormTab from "./XInputFormTab";
+import HtmlFormPreviewTab from "./HtmlFormPreviewTab";
 import type { FlowInformationProps, FlowInformationSection } from "./types";
 import GuideTabFade from "../shared/components/GuideTabFade";
 import { cn } from "@/lib/utils";
-import { getDomainFriendlyName } from "../domainGrouping";
 import { resolveXInputFormDoc } from "../content/resolveUseCaseDocs";
+import { decodeBase64 } from "../utils";
 
 const FlowInformation: FC<FlowInformationProps> = ({
     data,
@@ -63,13 +64,13 @@ const FlowInformation: FC<FlowInformationProps> = ({
     );
 
     const resetExampleIndex = useCallback(() => setSelectedExampleIndex(0), []);
-    const isInsuranceDomain = getDomainFriendlyName(domain) === "Insurance";
     const xInputFormContent = useMemo(
-        () =>
-            isInsuranceDomain
-                ? resolveXInputFormDoc(data["x-docs"], selectedFlowData?.usecase)
-                : undefined,
-        [isInsuranceDomain, data, selectedFlowData?.usecase]
+        () => resolveXInputFormDoc(data["x-docs"], selectedFlowData?.usecase),
+        [data, selectedFlowData?.usecase]
+    );
+    const formHtml = useMemo(
+        () => decodeBase64(selectedStep?.mock?.formHtml) ?? undefined,
+        [selectedStep]
     );
 
     const { activeSection, showPreviewDetails, handleSectionChange } = useFlowDetailSection({
@@ -103,11 +104,18 @@ const FlowInformation: FC<FlowInformationProps> = ({
         if (selectedStep) {
             order.push("request", "response");
         }
+        if (formHtml) order.push("html-form");
         if (hasXValidations) order.push("x-validations");
         if (xInputFormContent) order.push("xinput-form");
         return order;
-    }, [hasExampleObject, selectedStep, hasXValidations, xInputFormContent, sequenceMermaid]);
- 
+    }, [
+        hasExampleObject,
+        selectedStep,
+        hasXValidations,
+        xInputFormContent,
+        sequenceMermaid,
+        formHtml,
+    ]);
 
     if (isEmpty) {
         return (
@@ -181,6 +189,7 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 hasXValidations={hasXValidations}
                 hasXInputFormDoc={!!xInputFormContent}
                 hasSequenceDiagram={!!sequenceMermaid}
+                hasFormHtml={!!formHtml}
             />
 
             <GuideTabFade
@@ -237,6 +246,12 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 {activeSection === "response" && selectedStep && (
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                         <ResponseTab spec={data} api={selectedStep.api ?? selectedFlowAction} />
+                    </div>
+                )}
+
+                {activeSection === "html-form" && formHtml && (
+                    <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                        <HtmlFormPreviewTab formHtml={formHtml} />
                     </div>
                 )}
 

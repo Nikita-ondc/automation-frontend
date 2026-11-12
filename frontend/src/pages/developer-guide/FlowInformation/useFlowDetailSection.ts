@@ -39,6 +39,7 @@ export function useFlowDetailSection({
             "request",
             "response",
             "xinput-form",
+            "html-form",
         ];
 
         if (isFirstActionEffect.current) {

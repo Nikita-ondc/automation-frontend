@@ -6,7 +6,8 @@ export type FlowInformationSection =
     | "x-validations"
     | "request"
     | "response"
-    | "xinput-form";
+    | "xinput-form"
+    | "html-form";
 
 export interface FlowInformationProps {
     data: OpenAPISpecification;
