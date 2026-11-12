@@ -17,6 +17,7 @@ import aiProxyRoutes from "./aiProxyRoutes";
 import scenarioPreferencesRoutes from "./scenarioPreferencesRoutes";
 import reportsRoutes from "./reportsRoutes";
 import dashboardRoutes from "./dashboardRoutes"; // Import business dashboard routes
+import portalRoutes from "./portalRoutes"; // Import Portal Integration API (NP Portal)
 const router = Router();
 
 // Mount session-related routes
@@ -42,4 +43,6 @@ router.use("/guide", guideRoutes);
 router.use("/health", healthRoutes);
 router.use("/dev-guide", devGuideRoutes);
 router.use("/ai", aiProxyRoutes);
+// Portal Integration API for NP Portal: token auth, problem+json errors
+router.use("/v1", portalRoutes);
 export default router;

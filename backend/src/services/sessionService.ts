@@ -3,9 +3,45 @@ import { SessionCache, SubscriberCache } from "../interfaces/newSessionData";
 import { saveLog } from "../utils/console";
 import axios from "../utils/axios";
 import logger from "@ondc/automation-logger";
-import { upsertSessionInDb } from "./dbService";
+import { saveSessionSettingsInDb, SettingChange, upsertSessionInDb } from "./dbService";
+import { resolveChangedBy } from "./sessionOwnerService";
 const SESSION_EXPIRY = 3600 * 24 * 4; // 48 hour
 const EXPECTATION_EXPIRY = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Settings whose value really changed. A setting a session has never saved counts
+ * as off, because that is how the website shows it.
+ */
+export const settingChanges = (
+  previous: Partial<Record<string, boolean>> = {},
+  next: Record<string, boolean>,
+): SettingChange[] =>
+  Object.keys(next)
+    .filter((setting) => typeof next[setting] === "boolean")
+    .filter((setting) => Boolean(previous[setting]) !== next[setting])
+    .map((setting) => ({
+      setting,
+      previousValue: Boolean(previous[setting]),
+      newValue: next[setting],
+    }));
+
+/** Saved for the Portal API. Redis stays the copy that test runs read. */
+const recordSettings = async (
+  sessionId: string,
+  previous: Partial<Record<string, boolean>> | undefined,
+  next: Record<string, boolean>,
+  authorization: string | undefined,
+  loggerMeta: any,
+) => {
+  const changes = settingChanges(previous, next);
+  await saveSessionSettingsInDb(sessionId, {
+    settings: next,
+    changes,
+    changedBy: changes.length
+      ? await resolveChangedBy(authorization, loggerMeta)
+      : undefined,
+  });
+};
 
 export const createSessionService = async (
   sessionId: string,
@@ -73,6 +109,7 @@ export const createSessionService = async (
       usecaseId: usecaseId,
       domain,
       version,
+      settings: finalCache.sessionDifficulty,
     }).catch((e) => logger.error("DB session upsert failed", loggerMeta, e));
 
     logger.info("Session created successfully", loggerMeta, finalCache);
@@ -131,6 +168,7 @@ export const updateSessionService = async (
   sessionId: string,
   data: Partial<SessionCache>,
   loggerMeta: any,
+  authorization?: string,
 ) => {
   const {
     subscriberId,
@@ -152,6 +190,7 @@ export const updateSessionService = async (
     }
 
     const session: SessionCache = JSON.parse(sessionData);
+    const previousSettings = session.sessionDifficulty;
 
     // Update session data fields
     if (subscriberId) session.subscriberId = subscriberId;
@@ -187,6 +226,15 @@ export const updateSessionService = async (
     upsertSessionInDb(sessionId, {
       npType: session.npType,
     }).catch((e) => logger.error("DB session upsert failed", loggerMeta, e));
+    if (sessionDifficulty) {
+      recordSettings(
+        sessionId,
+        previousSettings,
+        sessionDifficulty,
+        authorization,
+        loggerMeta,
+      ).catch((e) => logger.error("Saving settings to DB failed", loggerMeta, e));
+    }
     return "Session updated successfully";
   } catch (error: any) {
     logger.error("Error updating session", loggerMeta, error);
