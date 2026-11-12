@@ -7,7 +7,7 @@ import { toRfc3339 } from "./portalProblem";
 export interface SessionsQuery {
 	q?: string;
 	status?: "active" | "expired";
-	results?: string[];
+	reportAvailable?: "true" | "false";
 	userIds?: string[];
 	domains?: string[];
 	versions?: string[];
@@ -27,7 +27,7 @@ export interface StoredSession {
 	sessionId: string;
 	userId?: string | null;
 	status: "active" | "expired";
-	result: "passed" | "failed" | "incomplete";
+	reportExists: boolean;
 	sessionType: "AUTOMATION" | "MANUAL";
 	npType: "BAP" | "BPP";
 	npId?: string | null;
@@ -42,7 +42,6 @@ export interface StoredSession {
 export interface StoredSessionDetail extends StoredSession {
 	orgId: string;
 	expiresAt: string | null;
-	reportExists: boolean;
 	flowSummary: {
 		flowId: string;
 		totalSteps: number;
@@ -74,7 +73,6 @@ const SETTING_NAMES: Record<string, string> = {
 
 const MAX_ORG_ID_LENGTH = 64;
 const MAX_SESSION_ID_LENGTH = 128;
-const RESULTS = ["passed", "failed", "incomplete"];
 const RFC_3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i;
 
 export function parseSessionsQuery(
@@ -85,11 +83,6 @@ export function parseSessionsQuery(
 
 	if (orgId.length > MAX_ORG_ID_LENGTH) {
 		fail("org_id", `must be at most ${MAX_ORG_ID_LENGTH} characters long`);
-	}
-
-	const results = list("result", RESULTS.length);
-	if (results?.some((result) => !RESULTS.includes(result))) {
-		fail("result", `must be one of: ${RESULTS.join(", ")}`);
 	}
 
 	const instant = (name: string): string | undefined => {
@@ -113,7 +106,7 @@ export function parseSessionsQuery(
 		query: {
 			q: search("q"),
 			status: choice("status", ["active", "expired"]),
-			results,
+			reportAvailable: choice("report_available", ["true", "false"]),
 			userIds: list("user_id", 50),
 			domains: list("domain", 50),
 			versions: list("version", 50),
@@ -135,7 +128,7 @@ export const toSessionListItem = (session: StoredSession) => ({
 	session_id: session.sessionId,
 	user_id: session.userId ?? "",
 	status: session.status,
-	result: session.result,
+	report_available: session.reportExists,
 	session_type: session.sessionType,
 	np_type: session.npType,
 	subscriber_url: session.npId ?? "",
@@ -160,7 +153,6 @@ export const toSessionDetail = (session: StoredSessionDetail) => ({
 	...toSessionListItem(session),
 	org_id: session.orgId,
 	expires_at: session.expiresAt && toRfc3339(new Date(session.expiresAt)),
-	report_available: session.reportExists,
 	flow_summary: session.flowSummary.map((flow) => ({
 		flow_id: flow.flowId,
 		total_steps: flow.totalSteps,

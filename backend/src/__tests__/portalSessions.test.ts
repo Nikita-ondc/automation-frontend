@@ -20,7 +20,7 @@ const stored = (overrides: Partial<StoredSession> = {}): StoredSession => ({
 	sessionId: "sess_1",
 	userId: "25716",
 	status: "active",
-	result: "failed",
+	reportExists: false,
 	sessionType: "AUTOMATION",
 	npType: "BAP",
 	npId: "https://buyer.example-np.in/ondc",
@@ -85,7 +85,7 @@ describe("GET /v1/organizations/{org_id}/sessions", () => {
 					session_id: "sess_1",
 					user_id: "25716",
 					status: "active",
-					result: "failed",
+					report_available: false,
 					session_type: "AUTOMATION",
 					np_type: "BAP",
 					subscriber_url: "https://buyer.example-np.in/ondc",
@@ -113,7 +113,7 @@ describe("GET /v1/organizations/{org_id}/sessions", () => {
 
 	it("passes every filter on to automation-db", async () => {
 		await call(
-			"/v1/organizations/org_1/sessions?q=buyer&status=active&result=failed&result=passed" +
+			"/v1/organizations/org_1/sessions?q=buyer&status=active&report_available=true" +
 				"&user_id=u1&domain=ONDC:RET10&domain=ONDC:RET11&version=1.2.5&usecase_id=GROCERY" +
 				"&np_type=BAP&session_type=AUTOMATION&subscriber_url=https://b.example&flow_id=F1" +
 				"&created_from=2026-10-01T00:00:00Z&created_to=2026-11-01T00:00:00Z" +
@@ -123,7 +123,7 @@ describe("GET /v1/organizations/{org_id}/sessions", () => {
 		expect(received[0].query).toEqual({
 			q: "buyer",
 			status: "active",
-			result: ["failed", "passed"],
+			reportExists: "true",
 			userId: "u1",
 			domain: ["ONDC:RET10", "ONDC:RET11"],
 			version: "1.2.5",
@@ -194,8 +194,8 @@ describe("parseSessionsQuery", () => {
 		["q", { q: "x" }],
 		["q", { q: "x".repeat(101) }],
 		["status", { status: ["active", "expired"] }],
-		["result", { result: "unknown" }],
-		["result", { result: ["passed", "nope"] }],
+		["report_available", { report_available: "yes" }],
+		["report_available", { report_available: ["true", "false"] }],
 		["session_type", { session_type: "automation" }],
 		["user_id", { user_id: Array(51).fill("u") }],
 		["domain", { domain: Array(51).fill("d") }],
@@ -239,7 +239,6 @@ const storedDetail = (overrides: Partial<StoredSessionDetail> = {}): StoredSessi
 	...stored(),
 	orgId: "org_1",
 	expiresAt: "2026-10-25T08:03:10.456Z",
-	reportExists: false,
 	flowSummary: [
 		{ flowId: "ORDER", totalSteps: 4, passedSteps: 2, failedSteps: 1, transactionIds: ["t1", "t2"] },
 	],
@@ -312,7 +311,7 @@ describe("GET /v1/organizations/{org_id}/sessions/{session_id}", () => {
 			org_id: "org_1",
 			user_id: "25716",
 			status: "active",
-			result: "failed",
+			report_available: false,
 			session_type: "AUTOMATION",
 			np_type: "BAP",
 			subscriber_url: "https://buyer.example-np.in/ondc",
@@ -322,7 +321,6 @@ describe("GET /v1/organizations/{org_id}/sessions/{session_id}", () => {
 			created_at: "2026-10-20T09:12:44Z",
 			last_activity_at: "2026-10-21T08:03:10Z",
 			expires_at: "2026-10-25T08:03:10Z",
-			report_available: false,
 			flow_summary: [
 				{ flow_id: "ORDER", total_steps: 4, passed_steps: 2, failed_steps: 1, transaction_ids: ["t1", "t2"] },
 			],

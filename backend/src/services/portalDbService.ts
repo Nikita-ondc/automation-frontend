@@ -54,7 +54,7 @@ export const fetchSessions = async (
 			params: {
 				q: query.q,
 				status: query.status,
-				result: query.results,
+				reportExists: query.reportAvailable,
 				userId: query.userIds,
 				domain: query.domains,
 				version: query.versions,
