@@ -61,7 +61,10 @@ const DeveloperGuideFlowPage: FC = () => {
     const hasAdditionalResources =
         !!additionalResourcesDocs && Object.keys(additionalResourcesDocs).length > 0;
 
-    const changelogDoc = useMemo(() => resolveChangelogDoc(specData?.["x-docs"]), [specData]);
+    const changelogDoc = useMemo(
+        () => resolveChangelogDoc(specData?.["x-docs"], apiUsecase ?? slug),
+        [specData, apiUsecase, slug]
+    );
     const tabOrder = useMemo(() => {
         const order: TopLevelView[] = ["docs"];
         if (hasFigma) order.push("reference-implementation");

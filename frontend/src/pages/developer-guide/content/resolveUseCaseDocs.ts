@@ -61,8 +61,10 @@ export function resolveAdditionalResourcesDocs(
     );
 }
 
-/** The Changelog tab's markdown comes from the backend as a single shared doc
- * per domain/version — the canonical filename going forward is
+const PER_USE_CASE_CHANGELOG_MARKER = "-changelogs";
+
+/** The shared Changelog fallback doc used when a use case has no dedicated
+ * `<usecase-slug>-changelogs` doc — the canonical filename going forward is
  * `changelogs.md`. Matched by normalizing (lowercased, `-`/`_` → space) so
  * minor naming variance still resolves; "changelog"/"release notes" are kept
  * as fallbacks for specs authored before this filename was settled on.
@@ -72,29 +74,48 @@ const CHANGELOG_SLUGS = new Set(["changelogs", "changelog", "release notes"]);
 
 /** Legacy per-use-case convention (`<usecase-slug>-changelog`, e.g.
  * `business-loan-changelog`) some older specs still ship. No longer used to
- * resolve Changelog tab *content* (the canonical `changelogs.md` doc is the
- * only source now), but still excluded from the normal docs tabs so a
- * leftover file doesn't show up as its own Use Case Brief tab. */
+ * resolve Changelog tab *content* (superseded by `PER_USE_CASE_CHANGELOG_MARKER`),
+ * but still excluded from the normal docs tabs so a leftover file doesn't
+ * show up as its own Use Case Brief tab. */
 const LEGACY_PER_USE_CASE_SUFFIX = "-changelog";
 
 function isCanonicalChangelogSlug(slug: string): boolean {
     return CHANGELOG_SLUGS.has(slug.toLowerCase().replace(/[-_]/g, " ").trim());
 }
 
-/** True for the canonical changelog doc or a legacy per-use-case one — used by
- * `DocsViewer` to keep both out of the normal docs tabs list (same as
- * `isAdditionalResourcesSlug`). */
+function isPerUseCaseChangelogSlug(slug: string): boolean {
+    return slug.toLowerCase().endsWith(PER_USE_CASE_CHANGELOG_MARKER);
+}
+
+/** True for the canonical changelog doc, a per-use-case one, or a legacy
+ * per-use-case one — used by `DocsViewer` to keep all of these out of the
+ * normal docs tabs list (same as `isAdditionalResourcesSlug`). */
 function isChangelogSlug(slug: string): boolean {
     return (
-        isCanonicalChangelogSlug(slug) || slug.toLowerCase().endsWith(LEGACY_PER_USE_CASE_SUFFIX)
+        isCanonicalChangelogSlug(slug) ||
+        isPerUseCaseChangelogSlug(slug) ||
+        slug.toLowerCase().endsWith(LEGACY_PER_USE_CASE_SUFFIX)
     );
 }
 
-/** Resolve the Changelog tab's markdown doc from API spec data, if present. */
+/** Resolve the Changelog tab's markdown doc from API spec data, if present.
+ * Prefers a `<usecase-slug>-changelogs` doc scoped to `useCaseId`; falls back
+ * to the shared canonical doc (`changelogs.md`/legacy aliases) when no
+ * dedicated per-use-case doc exists. */
 export function resolveChangelogDoc(
-    apiDocs: Record<string, string> | undefined
+    apiDocs: Record<string, string> | undefined,
+    useCaseId?: string
 ): string | undefined {
     if (!apiDocs) return undefined;
+
+    if (useCaseId) {
+        const perUseCaseSlug = `${labelToSlug(useCaseId)}${PER_USE_CASE_CHANGELOG_MARKER}`;
+        const perUseCaseEntry = Object.entries(apiDocs).find(
+            ([slug]) => slug.toLowerCase() === perUseCaseSlug
+        );
+        if (perUseCaseEntry) return prepareDocContent(perUseCaseEntry[1]);
+    }
+
     const entry = Object.entries(apiDocs).find(([slug]) => isCanonicalChangelogSlug(slug));
     return entry ? prepareDocContent(entry[1]) : undefined;
 }
