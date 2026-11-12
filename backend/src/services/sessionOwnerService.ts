@@ -14,6 +14,33 @@ export class OrganisationNotAllowedError extends Error {
 	}
 }
 
+/** Recorded as who changed a setting when there is no logged-in user. */
+export const ANONYMOUS_USER = "anonymous";
+
+/** The logged-in user's ID, or `anonymous` if the login service can't confirm one. */
+export const resolveChangedBy = async (
+	authorization: string | undefined,
+	loggerMeta: any,
+): Promise<string> => {
+	const loginService = process.env.DEVELOPER_GUIDE_SERVICE;
+	if (!authorization || !loginService) {
+		return ANONYMOUS_USER;
+	}
+	try {
+		const response = await axios.get(`${loginService}/auth/api/me`, {
+			headers: { Authorization: authorization },
+			timeout: 5000,
+		});
+		return response.data?.user?.username ?? ANONYMOUS_USER;
+	} catch (e: any) {
+		logger.info(
+			`Could not confirm who changed the settings (status ${e?.response?.status ?? "none"})`,
+			loggerMeta,
+		);
+		return ANONYMOUS_USER;
+	}
+};
+
 /**
  * Works out who a new session belongs to.
  *

@@ -152,7 +152,8 @@ export const updateSession = async (req: Request, res: Response) => {
 		const response = await updateSessionService(
 			sessionId,
 			sessionData,
-			getLoggerMeta(req)
+			getLoggerMeta(req),
+			req.headers.authorization
 		);
 		setSessionCookie(res, sessionId);
 		res.status(200).send({ message: response });
