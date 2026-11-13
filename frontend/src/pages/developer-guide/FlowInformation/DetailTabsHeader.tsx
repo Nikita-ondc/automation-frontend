@@ -10,6 +10,7 @@ interface DetailTabsHeaderProps {
     hasXValidations: boolean;
     hasXInputFormDoc?: boolean;
     hasSequenceDiagram: boolean;
+    hasFormHtml?: boolean;
 }
 
 const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
@@ -20,6 +21,7 @@ const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
     hasXValidations,
     hasXInputFormDoc = false,
     hasSequenceDiagram,
+    hasFormHtml = false,
 }) => (
     <GuideTabs<FlowInformationSection>
         active={activeSection}
@@ -43,13 +45,18 @@ const DetailTabsHeader: FC<DetailTabsHeaderProps> = ({
                     visible: hasStep,
                 },
                 {
+                    id: "html-form",
+                    label: "Form Preview",
+                    visible: hasFormHtml,
+                },
+                {
                     id: "x-validations",
                     label: "Validations",
                     visible: hasXValidations,
                 },
                 {
                     id: "xinput-form",
-                    label: "xInput Form",
+                    label: "XInput Form",
                     visible: hasXInputFormDoc,
                 },
             ] satisfies GuideTabItem<FlowInformationSection>[]

@@ -268,7 +268,7 @@ export function parseFormHtml(formHtml: string): ParsedForm {
 // session's transaction id and the xinput form id override whatever placeholder the HTML declared,
 // and anything else falls back to the declared value or a matching form-URL query param.
 
-function buildInitialValues(
+export function buildInitialValues(
     fields: AnyField[],
     hiddenValues: Record<string, string> = {}
 ): ValueState {

@@ -121,6 +121,7 @@ export interface FlowStep {
         validate?: string;
         requirements?: string;
         defaultPayload?: unknown;
+        formHtml?: string;
         [key: string]: unknown;
     };
 }

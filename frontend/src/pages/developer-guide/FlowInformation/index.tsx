@@ -14,11 +14,12 @@ import { useValidationTable } from "./useValidationTable";
 import { useSelectedFlowStep } from "./useSelectedFlowStep";
 import FlowsSidebar from "./FlowsSidebar";
 import XInputFormTab from "./XInputFormTab";
+import HtmlFormPreviewTab from "./HtmlFormPreviewTab";
 import type { FlowInformationProps, FlowInformationSection } from "./types";
 import GuideTabFade from "../shared/components/GuideTabFade";
 import { cn } from "@/lib/utils";
-import { getDomainFriendlyName } from "../domainGrouping";
 import { resolveXInputFormDoc } from "../content/resolveUseCaseDocs";
+import { decodeBase64 } from "../utils";
 
 const FlowInformation: FC<FlowInformationProps> = ({
     data,
@@ -63,17 +64,38 @@ const FlowInformation: FC<FlowInformationProps> = ({
     );
 
     const resetExampleIndex = useCallback(() => setSelectedExampleIndex(0), []);
-    const isInsuranceDomain = getDomainFriendlyName(domain) === "Insurance";
     const xInputFormContent = useMemo(
-        () =>
-            isInsuranceDomain
-                ? resolveXInputFormDoc(data["x-docs"], selectedFlowData?.usecase)
-                : undefined,
-        [isInsuranceDomain, data, selectedFlowData?.usecase]
+        () => resolveXInputFormDoc(data["x-docs"], selectedFlowData?.usecase),
+        [data, selectedFlowData?.usecase]
     );
+    const formHtml = useMemo(
+        () => decodeBase64(selectedStep?.mock?.formHtml) ?? undefined,
+        [selectedStep]
+    );
+
+    const detailTabOrder = useMemo(() => {
+        const order: FlowInformationSection[] = [];
+        if (sequenceMermaid) order.push("sequence");
+        order.push("preview");
+        if (selectedStep) {
+            order.push("request", "response");
+        }
+        if (formHtml) order.push("html-form");
+        if (hasXValidations) order.push("x-validations");
+        if (xInputFormContent) order.push("xinput-form");
+        return order;
+    }, [
+        hasExampleObject,
+        selectedStep,
+        hasXValidations,
+        xInputFormContent,
+        sequenceMermaid,
+        formHtml,
+    ]);
 
     const { activeSection, showPreviewDetails, handleSectionChange } = useFlowDetailSection({
         selectedFlowAction,
+        availableSections: detailTabOrder,
         onSectionReset: resetExampleIndex,
     });
 
@@ -95,19 +117,6 @@ const FlowInformation: FC<FlowInformationProps> = ({
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
     }, [isFullscreen]);
-
-    const detailTabOrder = useMemo(() => {
-        const order: FlowInformationSection[] = [];
-        if (sequenceMermaid) order.push("sequence");
-        order.push("preview");
-        if (selectedStep) {
-            order.push("request", "response");
-        }
-        if (hasXValidations) order.push("x-validations");
-        if (xInputFormContent) order.push("xinput-form");
-        return order;
-    }, [hasExampleObject, selectedStep, hasXValidations, xInputFormContent, sequenceMermaid]);
- 
 
     if (isEmpty) {
         return (
@@ -181,6 +190,7 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 hasXValidations={hasXValidations}
                 hasXInputFormDoc={!!xInputFormContent}
                 hasSequenceDiagram={!!sequenceMermaid}
+                hasFormHtml={!!formHtml}
             />
 
             <GuideTabFade
@@ -237,6 +247,12 @@ const FlowInformation: FC<FlowInformationProps> = ({
                 {activeSection === "response" && selectedStep && (
                     <div className="flex-1 min-h-0 overflow-y-auto pr-1">
                         <ResponseTab spec={data} api={selectedStep.api ?? selectedFlowAction} />
+                    </div>
+                )}
+
+                {activeSection === "html-form" && formHtml && (
+                    <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                        <HtmlFormPreviewTab formHtml={formHtml} />
                     </div>
                 )}
 
