@@ -14,7 +14,9 @@ interface ILoginGateProps {
 /**
  * Covers the new-session form for logged-out visitors with a login prompt.
  * They can still continue without logging in; those sessions have no userId
- * or organisation.
+ * or organisation. Only shown once the login service confirms NP Portal (ONDC)
+ * logins: a GitHub login carries no organisation, and if the provider is
+ * unknown the login button may not work either.
  */
 export const LoginGate = ({
     isLoggedOut,
@@ -23,9 +25,9 @@ export const LoginGate = ({
     children,
 }: ILoginGateProps) => {
     const [continueWithoutLogin, setContinueWithoutLogin] = useState(false);
-    const { label } = useLoginLabel();
+    const { provider, label } = useLoginLabel();
 
-    if (!isLoggedOut) {
+    if (!isLoggedOut || provider !== "ondc") {
         return children;
     }
 
